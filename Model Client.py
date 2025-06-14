@@ -1,6 +1,6 @@
 import pygame, random, socket, threading, json, math
 from game_classes import SCREEN_SIZE, TILE_SIZE, obstacleList, enemyList, bullets, characters, Wall, Character, Bullet, World, Enemy
-from game_classes import BLUE, WHITE, BLACK
+from game_classes import WHITE, BLACK
 
 
 HOST = '127.0.0.1'

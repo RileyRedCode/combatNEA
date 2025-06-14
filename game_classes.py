@@ -409,7 +409,8 @@ class Character(pygame.sprite.Sprite):
 	Name: tell_server
 	Parameters: action:string, coOrds:list
 	Returns: None
-	Purpose: 
+	Purpose: This function sends a message to the server so that the saem action can be completed on other player's 
+	games.
 	'''
 	def tell_server(self, action, coOrds =  None):
 		if self.connection != None:
@@ -420,6 +421,13 @@ class Character(pygame.sprite.Sprite):
 				packet = {"command": "PROJECTILE", "data": {"xPos": self.rect.x+(self.width//2)-2, "yPos":self.rect.y-2, "coOrds":coOrds}}
 				self.connection.send((json.dumps(packet) + "#").encode())
 
+	'''
+	Name: move
+	Parameters: None
+	Returns: None
+	Purpose: This checks if a player can move or wether they will collide with a wall. If the player is moving in 
+	multiple directions it will lower the velocity. 
+	'''
 	def move(self):
 		keys = pygame.key.get_pressed()
 		velocity = 6
@@ -486,12 +494,28 @@ class Character(pygame.sprite.Sprite):
 				# self.mapX = SCREEN_SIZE[0]-self.width
 			self.tell_server("move")
 
-
+'''
+Name: priorityQueue
+Purpose: This is a priority queue
+'''
 class priorityQueue:
+
+	'''
+	Name: __init__
+	Parameters: None
+	Returns: None
+	Purpose: Constructor for priority queues usesd for pathfinding.
+	'''
 	def __init__(self):
 		self.queue = []
 		self.length = len(self.queue)-1#Stores the index of the last item in the list
 
+	'''
+	Name: enqueue
+	Parameters: item:list
+	Returns: None
+	Purpose: This adds an item to the queue and orders it based of it's combined heuristic. 
+	'''
 	def enqueue(self, item):#This adds an item and readjusts
 		if self.length == -1:
 			self.queue.append(item)
@@ -509,6 +533,12 @@ class priorityQueue:
 				count += 1
 		self.length += 1
 
+	'''
+	Name: dequeue
+	Parameters: None
+	Returns: item:List
+	Purpose: Removes the first item in the queue then returns it.
+	'''
 	def dequeue(self):#This removes the first item and returns it
 		if self.length != -1:#Ensures the queue is not empty
 			item = self.queue[0]
@@ -516,17 +546,34 @@ class priorityQueue:
 			self.length -= 1
 			return item
 
+	'''
+	Name: insert
+	Parameters: path:list
+	Returns: None
+	Purpose: This removes an item then enqueues a version of the same item with the updated combined heuristic.
+	'''
 	def insert(self, path):
-		self.queue.remove(path)
+		for item in self.queue:
+			if item[0] == path[0]:
+				self.queue.remove(item)
 		self.length -= 1
 		self.enqueue(path)
-
-
 
 	# def destroy(self):
 	# 	self.kill()
 
+'''
+Name: Enemy
+Purpose: This is an enemy which tracks and attacks any players in it's vision.
+'''
 class Enemy(pygame.sprite.Sprite):
+
+	'''
+	Name: __init__
+	Parameters: x:int, y:int
+	Returns: None
+	Purpose: Constructor for enemies.
+	'''
 	def __init__(self, x, y):
 		super().__init__()
 		self.width = TILE_SIZE
@@ -541,6 +588,13 @@ class Enemy(pygame.sprite.Sprite):
 		self.mapY = 1000 + y
 		self.direction = "UP"
 
+	'''
+	Name: locate
+	Parameters: playerList:spriteGroup, world:object
+	Returns: successfulPath:list
+	Purpose: This makes use of an A* search and a priority queue in order to find a path from the enemy to any players 
+	in the enemies' sightings.
+	'''
 	def locate(self, playerList, world):#could do with Nodes
 		shortestDis = False
 		target = False
@@ -586,21 +640,25 @@ class Enemy(pygame.sprite.Sprite):
 
 				if not present:
 					pathNodes = current[3][:]
+					pathNodes.append(current[0])
 					if neighbour == goalNode:
 						solution = True
 						successfulPath = pathNodes
 						return successfulPath
 
 					else:
-						pathNodes.append(current[0])
 						paths.enqueue([neighbour, abs(math.sqrt(((neighbour.mapX - current[0].mapX) ** 2)+((neighbour.mapY - current[0].mapY)**2))) + current[1],#this calculates the hypotenuse from one neighbour to another then adds the previous nodes path cost
 								  abs(math.sqrt(((neighbour.mapX - current[0].mapX) ** 2)+((neighbour.mapY - current[0].mapY)**2))) + abs(math.sqrt(((neighbour.mapX - target.mapX)**2)+((neighbour.mapY - target.mapY)**2))), pathNodes])
 
 			if current[0] == goalNode:
 				solution = True
 
-
-
+	'''
+	Name: travel
+	Parameters: path:list
+	Returns: None
+	Purpose: This moves the enemy closer to the next node in the path it is given.
+	'''
 	def travel(self, path):
 		nextNode = path[1]
 		if len(path) < 3:
