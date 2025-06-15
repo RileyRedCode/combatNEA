@@ -152,6 +152,75 @@ class World:
 		screen.blit(self.worldSurface, (self.x, self.y))
 
 '''
+Name: Hud
+Purpose: This is a heads up display which displays information like Health to the player.
+'''
+class Hud:
+
+	'''
+	Name: __init__
+	Parameters: owner:object
+	Returns: None
+	Purpose: Initializes the hud.
+	'''
+	def __init__(self, owner):
+		self.owner = owner
+		#Health bar section
+		self.displayHealth = 100
+		self.displayDamage = 0
+		# dimensions are 110 by 30
+		self.healthbar = pygame.image.load("healthbar.png")
+		self.healthbar = pygame.transform.scale(self.healthbar,(220, 60))
+		#colours
+		self.healthBgColour = (25, 25, 25)
+		self.white = (255, 255, 255)
+		self.healthColour = (255, 120, 90)
+
+		self.health = pygame.surface.Surface((self.displayHealth, 40))
+		self.health.fill(self.healthColour)
+
+		self.damage = pygame.surface.Surface((self.displayHealth, 40))
+		self.damage.fill(self.white)
+
+	'''
+	Name: draw
+	Parameters: screen:rect
+	Returns: None
+	Purpose: Displays the Hud
+	'''
+	def draw(self, screen):
+		self.healthCalc(self.owner.health)
+		screen.blit(self.damage,((TILE_SIZE//4) + 10 + (self.displayHealth * 2) - 1, TILE_SIZE//4 + 10))
+		screen.blit(self.health,(TILE_SIZE//4 + 10 - 1, TILE_SIZE//4 + 10))
+		screen.blit(self.healthbar, (TILE_SIZE//4, TILE_SIZE//4))
+
+	'''
+	Name: healthCalc
+	Parameters: health:int
+	Returns: None
+	Purpose: This calculates the length of the healthbar and the amount of damage that needs to be displayed. 
+	'''
+	def healthCalc(self, playerHealth):
+		if self.displayHealth != playerHealth:
+			if playerHealth < self.displayHealth:
+				if self.displayHealth > 0:
+					self.displayDamage += self.displayHealth - playerHealth
+				self.displayHealth = playerHealth
+				if self.displayHealth < 0:
+					self.displayHealth = 0
+
+		#This decreases by one over time so that the damage bar slowly disappears
+		self.displayDamage -= 1
+		if self.displayDamage < 0:
+			self.displayDamage = 0
+
+		elif self.displayHealth+ self.displayDamage > 100:
+			self.displayDamage = 100- self.displayHealth
+
+		self.health = pygame.transform.scale(self.health, ((self.displayHealth * 2) + 1, 40))
+		self.damage = pygame.transform.scale(self.damage, ((self.displayDamage * 2) + 1, 40))
+
+'''
 Name: Camera
 Purpose: This is used to ensure that when a player travels all entities including the map move appropriately to simulate
 movement.
@@ -160,7 +229,7 @@ class Camera:
 
 	'''
 	Name: __init__
-	Parameters: Owner:class
+	Parameters: owner:object
 	Returns: None
 	Purpose: This Constructs the camera and assigns it to the player so it follows them and not any other players in the server.
 	'''
@@ -356,6 +425,9 @@ class Character(pygame.sprite.Sprite):
 		self.direction = "UP"
 		self.connection = conn
 		self.camera = Camera(self)
+		self.hud = Hud(self)
+		self.health = 100
+		self.damage = 0
 
 	'''
 	Name: fire
@@ -493,6 +565,9 @@ class Character(pygame.sprite.Sprite):
 				self.rect.x = SCREEN_SIZE[0]-self.width
 				# self.mapX = SCREEN_SIZE[0]-self.width
 			self.tell_server("move")
+
+	def takeDamage(self, damage):
+		self.health -= damage
 
 '''
 Name: priorityQueue

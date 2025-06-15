@@ -143,22 +143,22 @@ while running == True:
     bullets.update()
     player.move()
     count = 0
-    for character in characters:
-        if count == 0:
-            character.camera.worldAdjust(SCREEN, world, characters, enemyList)
-            character.camera.reAdjust()
-            character.camera.bulletAdjust(bullets)
-            character.camera.obstacleAdjust(obstacleList)
-            for enemy in enemyList:
-                # print(enemy.locate([player], world))
-                enemy.travel(enemy.locate([player], world))
-                # print(enemy.mapX, enemy.mapY)
-            count += 1
+
+    player.camera.worldAdjust(SCREEN, world, characters, enemyList)
+    player.camera.reAdjust()
+    player.camera.bulletAdjust(bullets)
+    player.camera.obstacleAdjust(obstacleList)
+    for enemy in enemyList:
+        # print(enemy.locate([player], world))
+        enemy.travel(enemy.locate([player], world))
+        # print(enemy.mapX, enemy.mapY)
+        count += 1
 
     world.draw(SCREEN)
     enemyList.draw(SCREEN)
     characters.draw(SCREEN)
     obstacleList.draw(SCREEN)
     bullets.draw(SCREEN)
+    player.hud.draw(SCREEN)
     clock.tick(60)
     pygame.display.update()
