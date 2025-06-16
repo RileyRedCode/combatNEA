@@ -1,5 +1,5 @@
 import pygame, random, socket, threading, json, math
-from game_classes import SCREEN_SIZE, TILE_SIZE, obstacleList, enemyList, bullets, characters, Wall, Character, Bullet, World, Enemy
+from game_classes import SCREEN_SIZE, TILE_SIZE, obstacleList, enemyList, bullets, characters, explosions, Wall, Character, Bullet, World, Enemy
 from game_classes import WHITE, BLACK
 
 
@@ -96,6 +96,10 @@ for row in MAP:
 running = wait_screen()
 
 enemyList.add(Enemy(900, 900))
+enemyList.add(Enemy(1000, 1100))
+enemyList.add(Enemy(2000, 900))
+enemyList.add(Enemy(900, 800))
+enemyList.add(Enemy(900, 6000))
 
 world = World(textMap, obstacles)
 for obstacle in world.obstacleList:
@@ -140,21 +144,25 @@ while running == True:
             if not pygame.mouse.get_pressed()[0] and event.button == 1:
                 coOrds = pygame.mouse.get_pos()
                 player.fire(coOrds)
+
     bullets.update()
+    explosions.update()
     player.move()
-    count = 0
 
     player.camera.worldAdjust(SCREEN, world, characters, enemyList)
     player.camera.reAdjust()
-    player.camera.bulletAdjust(bullets)
+    player.camera.bulletAdjust(bullets, explosions)
     player.camera.obstacleAdjust(obstacleList)
     for enemy in enemyList:
-        # print(enemy.locate([player], world))
-        enemy.travel(enemy.locate([player], world))
+        if not enemy.startTime:
+            path = enemy.locate([player], world)
+            enemy.travel(path)
+        else:
+            enemy.attack()
         # print(enemy.mapX, enemy.mapY)
-        count += 1
 
     world.draw(SCREEN)
+    explosions.draw(SCREEN)
     enemyList.draw(SCREEN)
     characters.draw(SCREEN)
     obstacleList.draw(SCREEN)

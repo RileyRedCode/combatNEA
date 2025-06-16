@@ -182,6 +182,9 @@ class Hud:
 		self.damage = pygame.surface.Surface((self.displayHealth, 40))
 		self.damage.fill(self.white)
 
+		self.background = pygame.surface.Surface((self.displayHealth*2, 40))
+		self.background.fill(self.healthBgColour)
+
 	'''
 	Name: draw
 	Parameters: screen:rect
@@ -190,6 +193,8 @@ class Hud:
 	'''
 	def draw(self, screen):
 		self.healthCalc(self.owner.health)
+
+		screen.blit(self.background, (TILE_SIZE // 4 + 10, TILE_SIZE // 4 + 10))
 		screen.blit(self.damage,((TILE_SIZE//4) + 10 + (self.displayHealth * 2) - 1, TILE_SIZE//4 + 10))
 		screen.blit(self.health,(TILE_SIZE//4 + 10 - 1, TILE_SIZE//4 + 10))
 		screen.blit(self.healthbar, (TILE_SIZE//4, TILE_SIZE//4))
@@ -198,14 +203,19 @@ class Hud:
 	Name: healthCalc
 	Parameters: health:int
 	Returns: None
-	Purpose: This calculates the length of the healthbar and the amount of damage that needs to be displayed. 
+	Purpose: This calculates the length of the healthbar and the amount of damage that needs to be displayed (The 
+	damage bars length will slowly decrease). 
 	'''
 	def healthCalc(self, playerHealth):
 		if self.displayHealth != playerHealth:
+			#If health has been lost
 			if playerHealth < self.displayHealth:
+				#This ensures that damage does not begin increasing
 				if self.displayHealth > 0:
 					self.displayDamage += self.displayHealth - playerHealth
+
 				self.displayHealth = playerHealth
+				#This prevents issues when drawing the bar MAYBE SHOULD SHIFT TAB BY ONE?
 				if self.displayHealth < 0:
 					self.displayHealth = 0
 
@@ -290,11 +300,13 @@ class Camera:
 	Returns: None
 	Purpose: This readjusts any projectiles in the world
 	'''
-	def bulletAdjust(self, bulletList):
+	def bulletAdjust(self, bulletList, explosionList):
 		worldX = self.owner.rect.center[0]-self.owner.mapX
 		worldY = self.owner.rect.center[1]-self.owner.mapY
 		for bullet in bulletList:
 			bullet.rect.center = (worldX + bullet.mapX, worldY + bullet.mapY)
+		for explosion in explosionList:
+			explosion.rect.center = (worldX + explosion.mapX, worldY + explosion.mapY)
 
 	'''
 	Name: obstacleAdjust
@@ -313,6 +325,7 @@ enemyList = pygame.sprite.Group()
 characters = pygame.sprite.Group()
 obstacleList = pygame.sprite.Group()
 bullets = pygame.sprite.Group()
+explosions = pygame.sprite.Group()
 
 '''
 Name: Bullet
@@ -335,8 +348,7 @@ class Bullet(pygame.sprite.Sprite):
 		self.image.fill(WHITE)
 		pygame.draw.rect(self.image,(0,0,0),(0,0,self.width,self.height))
 		self.rect = self.image.get_rect()
-		self.rect.x = x
-		self.rect.y = y
+		self.rect.center = x, y
 		self.mapX = x
 		self.mapY = y
 		self.direction = direction
@@ -363,6 +375,60 @@ class Bullet(pygame.sprite.Sprite):
 		if self.mapX< 0 or self.mapX > MAP_RES[0]:
 			bullets.remove(self)
 			self.kill()
+
+'''
+Name: Explosion
+Purpose: An area that deals damage before disappearing.
+'''
+class Explosion(pygame.sprite.Sprite):
+
+	'''
+	Name: __init__
+	Parameters: x:integer, y:integer
+	Returns: None
+	Purpose: Constructs an explosion.
+	'''
+	def __init__(self,x,y):
+		super().__init__()
+		self.mapX, self.mapY = x, y
+		self.width, self.height = TILE_SIZE*7, TILE_SIZE*7
+		self.explosionTime = pygame.time.get_ticks()
+
+		self.image = pygame.surface.Surface((self.height, self.width))
+		#This makes the initial surface transparent
+		self.image = pygame.Surface((self.width, self.height), pygame.SRCALPHA)
+
+		#Adds two circles representing the different levels of damage
+		pygame.draw.circle(self.image, (255, 0, 0), (self.width//2, self.height//2), self.height // 2)
+		pygame.draw.circle(self.image, (255, 255, 0), (self.width // 2, self.height // 2), (self.height//2) // 2)
+
+		self.rect = self.image.get_rect()
+		self.rect.x, self.rect.y = x, y
+
+	'''
+	Name: update
+	Parameters: None
+	Returns: None
+	Purpose: This checks if the player is colliding with the rect it then checks the distance from the center and
+	applies the appropriate amount of damage. It then deletes the explosion if enough time has passed but otherwise just
+	lowers the alpha to make it look like it's fading away.
+	'''
+	def update(self):
+		collisions = pygame.sprite.spritecollide(self, characters, False)
+		if collisions != []:
+			for col in collisions:
+				distance = math.sqrt(((col.mapX - self.mapX)**2)+((col.mapY - self.mapY)**2))
+				if distance < (self.height//2)//2:
+					col.takeDamage(40)
+				elif distance < self.height//2:
+					col.takeDamage(10)
+
+		if pygame.time.get_ticks() - self.explosionTime > 250:
+			explosions.remove(self)
+			self.kill()
+		else:
+			self.image.set_alpha(self.image.get_alpha()-19)
+
 
 '''
 Name: Wall
@@ -427,7 +493,7 @@ class Character(pygame.sprite.Sprite):
 		self.camera = Camera(self)
 		self.hud = Hud(self)
 		self.health = 100
-		self.damage = 0
+		self.invincible = False
 
 	'''
 	Name: fire
@@ -450,15 +516,6 @@ class Character(pygame.sprite.Sprite):
 			sides = coOrds
 		b = Bullet(self.mapX, self.mapY, sides)
 		bullets.add(b)
-		# return
-		# if self.direction == "UP":
-		# 	b = Bullet(self.rect.x+(self.width//2)-2,self.rect.y-2,sides)
-		# elif self.direction == "DOWN":
-		# 	b = Bullet(self.rect.x + (self.width // 2) - 2, self.rect.y +(self.height // 2) - 2, sides)
-		# elif self.direction == "LEFT":
-		# 	b = Bullet(self.rect.x - 2, self.rect.y + (self.height // 2) - 2, sides)
-		# else:
-		# 	b = Bullet(self.rect.x + (self.width) - 2, self.rect.y + (self.height // 2) - 2, sides)
 
 	'''
 	Name: rotate
@@ -566,8 +623,19 @@ class Character(pygame.sprite.Sprite):
 				# self.mapX = SCREEN_SIZE[0]-self.width
 			self.tell_server("move")
 
+	'''
+	Name: takeDamage
+	Parameters: damage:int
+	Returns: None
+	Purpose: If enough time has passed since last damaged the enemy will take damage
+	'''
 	def takeDamage(self, damage):
-		self.health -= damage
+		if pygame.time.get_ticks() - self.invincible >800 or not self.invincible:
+			self.health -= damage
+			if self.health < 0:
+				self.health = 0
+			self.invincible = pygame.time.get_ticks()
+
 
 '''
 Name: priorityQueue
@@ -662,6 +730,7 @@ class Enemy(pygame.sprite.Sprite):
 		self.mapX = 1000 + x
 		self.mapY = 1000 + y
 		self.direction = "UP"
+		self.startTime = False
 
 	'''
 	Name: locate
@@ -719,6 +788,7 @@ class Enemy(pygame.sprite.Sprite):
 					if neighbour == goalNode:
 						solution = True
 						successfulPath = pathNodes
+						del(paths)
 						return successfulPath
 
 					else:
@@ -732,27 +802,47 @@ class Enemy(pygame.sprite.Sprite):
 	Name: travel
 	Parameters: path:list
 	Returns: None
-	Purpose: This moves the enemy closer to the next node in the path it is given.
+	Purpose: This moves the enemy closer to the next node in the path it is given. If it is close enough to the player
+	it will now begin exploding.
 	'''
 	def travel(self, path):
-		nextNode = path[1]
-		if len(path) < 3:
-			#write a function that make it attack
-			pass
+		#This stops the game from breaking if the player is so close that no path is returned
+		if path:
+			# Starts the attack sequence although maybe I should move this somewhere else?
+			if len(path) < 2 and not self.startTime:
+				self.startTime = pygame.time.get_ticks()
 
-			# while self.mapX not in range(node.mapX-3, node.mapX+3) and self.mapY not in range(node.mapY-3, node.mapY+3):
-		sides = [self.mapX - nextNode.mapX, self.mapY - nextNode.mapY]
+			#Moves the enemy
+			else:
+				nextNode = path[1]
+				sides = [self.mapX - nextNode.mapX, self.mapY - nextNode.mapY]
 
-		hypotenuse = math.sqrt((sides[0]**2)+(sides[1]**2))
-		seconds = hypotenuse//2
-		# return self.mapX, nextNode.mapX, self.mapY, nextNode.mapY
-		for count in range(len(sides)):
-			sides[count] = sides[count] * -1
-			sides[count] = sides[count] // seconds
+				hypotenuse = math.sqrt((sides[0]**2)+(sides[1]**2))
+				seconds = hypotenuse//2
+				# return self.mapX, nextNode.mapX, self.mapY, nextNode.mapY
+				for count in range(len(sides)):
+					sides[count] = sides[count] * -1
+					sides[count] = sides[count] // seconds
 
 
-		self.mapX += sides[0]
-		self.mapY += sides[1]
+				self.mapX += sides[0]
+				self.mapY += sides[1]
+
+	'''
+	Name: attack
+	Parameters: None
+	Returns: None
+	Purpose: This starts an explosion when enough time has passed since the enemy has begun destructing. It will then 
+	spawn an explosion and destroy itself. 
+	'''
+	def attack(self):
+		#If enough time has passed
+		if pygame.time.get_ticks() - self.startTime >= 200:
+			#Creates explosion
+			e = Explosion(self.mapX, self.mapY)
+			explosions.add(e)
+			enemyList.remove(self)
+			self.kill()
 
 
 	# # def fire(self, coOrds, calculated=False):
