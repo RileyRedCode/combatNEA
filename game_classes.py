@@ -388,7 +388,7 @@ class Explosion(pygame.sprite.Sprite):
 	Returns: None
 	Purpose: Constructs an explosion.
 	'''
-	def __init__(self,x,y):
+	def __init__(self,x,y, rectX, rectY):
 		super().__init__()
 		self.mapX, self.mapY = x, y
 		self.width, self.height = TILE_SIZE*7, TILE_SIZE*7
@@ -403,7 +403,7 @@ class Explosion(pygame.sprite.Sprite):
 		pygame.draw.circle(self.image, (255, 255, 0), (self.width // 2, self.height // 2), (self.height//2) // 2)
 
 		self.rect = self.image.get_rect()
-		self.rect.x, self.rect.y = x, y
+		self.rect.center = rectX, rectY
 
 	'''
 	Name: update
@@ -428,7 +428,6 @@ class Explosion(pygame.sprite.Sprite):
 			self.kill()
 		else:
 			self.image.set_alpha(self.image.get_alpha()-19)
-
 
 '''
 Name: Wall
@@ -839,7 +838,7 @@ class Enemy(pygame.sprite.Sprite):
 		#If enough time has passed
 		if pygame.time.get_ticks() - self.startTime >= 200:
 			#Creates explosion
-			e = Explosion(self.mapX, self.mapY)
+			e = Explosion(self.mapX, self.mapY, self.rect.center[0], self.rect.center[1])
 			explosions.add(e)
 			enemyList.remove(self)
 			self.kill()

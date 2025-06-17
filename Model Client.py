@@ -96,10 +96,10 @@ for row in MAP:
 running = wait_screen()
 
 enemyList.add(Enemy(900, 900))
-enemyList.add(Enemy(1000, 1100))
-enemyList.add(Enemy(2000, 900))
-enemyList.add(Enemy(900, 800))
-enemyList.add(Enemy(900, 6000))
+# enemyList.add(Enemy(1000, 1100))
+# enemyList.add(Enemy(2000, 900))
+# enemyList.add(Enemy(900, 800))
+# enemyList.add(Enemy(900, 6000))
 
 world = World(textMap, obstacles)
 for obstacle in world.obstacleList:

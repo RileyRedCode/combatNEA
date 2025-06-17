@@ -6,16 +6,16 @@ PORT = 50000
 
 
 def recv_from_client(conn,client_list):
-	while True:
-		data = conn.recv(1024)
-		if data:
-			instructions = data.decode().split("#")
-			packet = json.loads(instructions[0])
-			for client in client_list:
-				if client != conn:
-					client.send((json.dumps(packet)+"#").encode())
-			# else:
-			# 	print("Problem", packet)
+    while True:
+        data = conn.recv(1024)
+        if data:
+            instructions = data.decode().split("#")
+            packet = json.loads(instructions[0])
+            for client in client_list:
+                if client != conn:
+                    client.send((json.dumps(packet)+"#").encode())
+        # else:
+        # 	print("Problem", packet)
 
 s = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
 s.bind( (HOST,PORT) )
@@ -31,31 +31,31 @@ obstacles = mapGen.obstacleGen()
 print("Server is listening on port",PORT)
 s.listen(1)
 while True:
-	conn, addr = s.accept()
-	client_list.append(conn)
-	print("New Connection from ",addr)
-	threading.Thread(target=recv_from_client, args=(conn,client_list)).start()
-	if len(client_list) % 2 == 1:
-		player_pos = player_positions[0]
-		enemy_pos = player_positions[1]
-	else:
-		player_pos = player_positions[1]
-		enemy_pos = player_positions[0]
-	message = {"command":"SETUP", "data":{"PlayerX":player_pos[0], "PlayerY":player_pos[1], "EnemyX":enemy_pos[0], "EnemyY":enemy_pos[1]}}
-	conn.send((json.dumps(message)+"#").encode())
-	time.sleep(1)
-	message = {"command":"OBSTACLES", "data":obstacles}
-	conn.send((json.dumps(message)+"#").encode())
-	time.sleep(1)
+    conn, addr = s.accept()
+    client_list.append(conn)
+    print("New Connection from ",addr)
+    threading.Thread(target=recv_from_client, args=(conn,client_list)).start()
+    if len(client_list) % 2 == 1:
+        player_pos = player_positions[0]
+        player2_pos = player_positions[1]
+    else:
+        player_pos = player_positions[1]
+        player2_pos = player_positions[0]
+    message = {"command":"SETUP", "data":{"PlayerX":player_pos[0], "PlayerY":player_pos[1], "EnemyX":player2_pos[0], "EnemyY":player2_pos[1]}}
+    conn.send((json.dumps(message)+"#").encode())
+    time.sleep(1)
+    message = {"command":"OBSTACLES", "data":obstacles}
+    conn.send((json.dumps(message)+"#").encode())
+    time.sleep(1)
 
-	# for count in range(len(textMap)):
-	# 	if count == len(textMap)-1:
-	# 		message = {"command":"MAP", "data":{"Count":"FINAL", "List":textMap[count]}}
-	# 	else:
-	# 		message = {"command": "MAP", "data": {"Count": count, "List": textMap[count]}}
-	# 	conn.send(json.dumps(message).encode())
-	# 	time.sleep(1)
-	if len(client_list) == 2:
-		message = {"command": "START"}
-		for c in client_list:
-			c.send(json.dumps(message).encode())
+    # for count in range(len(textMap)):
+    # 	if count == len(textMap)-1:
+    # 		message = {"command":"MAP", "data":{"Count":"FINAL", "List":textMap[count]}}
+    # 	else:
+    # 		message = {"command": "MAP", "data": {"Count": count, "List": textMap[count]}}
+    # 	conn.send(json.dumps(message).encode())
+    # 	time.sleep(1)
+    if len(client_list) == 2:
+        message = {"command": "START"}
+        for c in client_list:
+            c.send(json.dumps(message).encode())
