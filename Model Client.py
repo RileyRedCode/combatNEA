@@ -1,5 +1,6 @@
 import pygame, random, socket, threading, json, math
-from game_classes import SCREEN_SIZE, TILE_SIZE, obstacleList, enemyList, bullets, characters, explosions, Wall, Character, Bullet, World, Enemy
+from game_classes import SCREEN_SIZE, TILE_SIZE, obstacleList, enemyList, bullets, characters, explosions, Wall, \
+    Character, Bullet, World, Enemy, nodeSetup
 from game_classes import WHITE, BLACK
 
 
@@ -38,23 +39,34 @@ def recv_from_server(conn):
             print(packet)
             packet = packet.split("#")[0]
             packet = json.loads(packet)
+
             if packet["command"] == "START":
                 Waiting = False
+
             if packet["command"] == "SETUP":
                 c = Character(int(packet["data"]["PlayerX"]), int(packet["data"]["PlayerY"]), conn)
                 characters.add(c)
                 playerTwo = Character(int(packet["data"]["EnemyX"]), int(packet["data"]["EnemyY"]))
                 characters.add(playerTwo)
-            if packet["command"] == "MOVE":
-                playerTwo.mapX = packet["data"]["xPos"]
-                playerTwo.mapY = packet["data"]["yPos"]
-            if packet["command"] == "PROJECTILE":
-                playerTwo.fire(packet["data"]["coOrds"], True)
+
             if packet["command"] == "MAP":
                 textMap.append(packet["data"]["List"])
+
             if packet["command"] == "OBSTACLES":
                 for ob in packet["data"]:
                     obstacles.append(ob)
+
+            if packet["command"] == "ENEMIES":
+                for i in packet["data"]:
+                    enemyList.add(Enemy(i[0], i[1]))
+
+            if packet["command"] == "MOVE":
+                playerTwo.mapX = packet["data"]["xPos"]
+                playerTwo.mapY = packet["data"]["yPos"]
+
+            if packet["command"] == "PROJECTILE":
+                playerTwo.fire(packet["data"]["coOrds"], True)
+
 
 s = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
 s.connect((HOST,PORT))
@@ -95,7 +107,7 @@ for row in MAP:
 
 running = wait_screen()
 
-enemyList.add(Enemy(900, 900))
+# enemyList.add(Enemy(900, 900))
 # enemyList.add(Enemy(1000, 1100))
 # enemyList.add(Enemy(2000, 900))
 # enemyList.add(Enemy(900, 800))
@@ -104,7 +116,7 @@ enemyList.add(Enemy(900, 900))
 world = World(textMap, obstacles)
 for obstacle in world.obstacleList:
     obstacleList.add(obstacle)
-world.setupNodes(obstacleList)
+world.nodes = nodeSetup(obstacleList, world.nodes)
 count = 0
 
 

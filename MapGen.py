@@ -1,4 +1,6 @@
 import random, pygame
+from xml.etree.ElementTree import XMLParser
+
 from PIL import Image
 
 #Need to program linear search to ensure no conflicts slip through, need to guranatee all biomes, DEEP WATER increase likelihood?
@@ -251,6 +253,17 @@ class Obstacle(pygame.sprite.Sprite):
         self.mapY = y
         self.rect.center = (x, y)
         self.type = type
+
+    def __repr__(self):
+        return f"{self.mapX}, {self.mapY}, obstacle"
+
+class ServerObstacle:
+    def __init__(self, type, x, y):
+        self.type = type
+        self.width = TILE_SIZE
+        self.height = TILE_SIZE
+        self.mapX = x
+        self.mapY = y
 
 
 #

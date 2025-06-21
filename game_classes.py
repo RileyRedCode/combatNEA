@@ -44,7 +44,7 @@ class Node:
 	It is used for debugging purposes.
 	'''
 	def __repr__(self):
-		return f"{self.mapX},{self.mapY}"
+		return f"[{self.mapX},{self.mapY}]"
 
 '''
 Name: World
@@ -74,73 +74,73 @@ class World:
 		self.worldSurface.blit(self.img, (0, 0))
 		self.nodes = [[False for count in range(MAP_WIDTH*(SCREEN_SIZE[1]//TILE_SIZE))] for i in range(MAP_WIDTH*(SCREEN_SIZE[0]//TILE_SIZE))]#Establishes a plain grid
 
-	'''
-	Name: setupNodes
-	Parameters: obstacleList:spriteGroup
-	Returns: None
-	Purpose: This scans over the whole map to check if there are any collisions with obstacles.
-	if it doesn't detect a collision in the given area then it will initialise a Node for pathfinding and store it in
-	the self.nodes variable(It is a two dimensional list). It will then pass through every node in this 2D list to
-	establish neighbours if there are any near it. Neighbours are added in a way that tries to ensure entities don't get
-	stuck on corners.
-	'''
-	def setupNodes(self, obstacleList):
-		colDetector = pygame.sprite.Sprite()#This is an object that is used to seeif anything is near where it is placed
-		colDetector.rect = pygame.Rect(0, 0, 10, 10)
-		for y in range(MAP_WIDTH * (SCREEN_SIZE[1] // TILE_SIZE)):#This calculates the amount of cells wide each tile is then multiplies it by the number of tiles
-			for x in range(MAP_WIDTH * (SCREEN_SIZE[0] // TILE_SIZE)):
-				colDetector.rect.center = (x * TILE_SIZE) + (TILE_SIZE // 2), (y * TILE_SIZE) + (TILE_SIZE // 2)
-				collisions = pygame.sprite.spritecollide(colDetector, obstacleList, False)
-				if not collisions:
-					self.nodes[y][x] = Node((x * TILE_SIZE) + (TILE_SIZE // 2), (y * TILE_SIZE) + (TILE_SIZE // 2))
-
-		#This assigns the neighbours to the nodes
-		for y in range(MAP_WIDTH*(SCREEN_SIZE[1]//TILE_SIZE)):#This calculates the amount of cells wide each tile is then multiplies it by the number of tiles
-			for x in range(MAP_WIDTH*(SCREEN_SIZE[0]//TILE_SIZE)):
-				if self.nodes[y][x] != False:#If there is a node present
-					if x != 0:#If not at a border
-						if self.nodes[y][x - 1]:# if the node is not false
-							self.nodes[y][x].left = self.nodes[y][x - 1]
-							self.nodes[y][x].neighbours.append(self.nodes[y][x].left)
-
-						if y != 0:
-							if self.nodes[y][x-1] != False and self.nodes[y-1][x] != False:#This is in order to prevent clipping through corners
-								if self.nodes[y - 1][x - 1]:
-									self.nodes[y][x].topLeft = self.nodes[y - 1][x - 1]
-									self.nodes[y][x].neighbours.append(self.nodes[y][x].topLeft)
-
-						if y != MAP_WIDTH * (SCREEN_SIZE[0] // TILE_SIZE) - 1:
-							if self.nodes[y][x-1] != False and self.nodes[y+1][x] != False:
-								if self.nodes[y + 1][x - 1]:
-									self.nodes[y][x].bottomLeft = self.nodes[y + 1][x - 1]
-									self.nodes[y][x].neighbours.append(self.nodes[y][x].bottomLeft)
-
-					if x != MAP_WIDTH*(SCREEN_SIZE[0]//TILE_SIZE) - 1:
-						if self.nodes[y][x+1]:
-							self.nodes[y][x].right = self.nodes[y][x+1]
-							self.nodes[y][x].neighbours.append(self.nodes[y][x].right)
-
-						if y != 0:
-							if self.nodes[y][x+1] != False and self.nodes[y-1][x] != False:
-								if self.nodes[y - 1][x + 1]:
-									self.nodes[y][x].topRight = self.nodes[y - 1][x + 1]
-									self.nodes[y][x].neighbours.append(self.nodes[y][x].topRight)
-
-						if y != MAP_WIDTH * (SCREEN_SIZE[0] // TILE_SIZE) - 1:
-							if self.nodes[y][x+1] != False and self.nodes[y+1][x] != False:
-								if self.nodes[y +1][x + 1]:
-									self.nodes[y][x].bottomRight = self.nodes[y +1][x + 1]
-									self.nodes[y][x].neighbours.append(self.nodes[y][x].bottomRight)
-
-					if y != 0:
-						if self.nodes[y-1][x]:
-							self.nodes[y][x].up = self.nodes[y-1][x]
-							self.nodes[y][x].neighbours.append(self.nodes[y][x].up)
-
-					if y != MAP_WIDTH * (SCREEN_SIZE[0] // TILE_SIZE) - 1:
-						if self.nodes[y+1][x]:
-							self.nodes[y][x].down = self.nodes[y+1][x]
-							self.nodes[y][x].neighbours.append(self.nodes[y][x].down)
+	# '''
+	# Name: setupNodes
+	# Parameters: obstacleList:spriteGroup
+	# Returns: None
+	# Purpose: This scans over the whole map to check if there are any collisions with obstacles.
+	# if it doesn't detect a collision in the given area then it will initialise a Node for pathfinding and store it in
+	# the self.nodes variable(It is a two dimensional list). It will then pass through every node in this 2D list to
+	# establish neighbours if there are any near it. Neighbours are added in a way that tries to ensure entities don't get
+	# stuck on corners.
+	# '''
+	# def setupNodes(self, obstacleList):
+	# 	colDetector = pygame.sprite.Sprite()#This is an object that is used to seeif anything is near where it is placed
+	# 	colDetector.rect = pygame.Rect(0, 0, 10, 10)
+	# 	for y in range(MAP_WIDTH * (SCREEN_SIZE[1] // TILE_SIZE)):#This calculates the amount of cells wide each tile is then multiplies it by the number of tiles
+	# 		for x in range(MAP_WIDTH * (SCREEN_SIZE[0] // TILE_SIZE)):
+	# 			colDetector.rect.center = (x * TILE_SIZE) + (TILE_SIZE // 2), (y * TILE_SIZE) + (TILE_SIZE // 2)
+	# 			collisions = pygame.sprite.spritecollide(colDetector, obstacleList, False)
+	# 			if not collisions:
+	# 				self.nodes[y][x] = Node((x * TILE_SIZE) + (TILE_SIZE // 2), (y * TILE_SIZE) + (TILE_SIZE // 2))
+	#
+	# 	#This assigns the neighbours to the nodes
+	# 	for y in range(MAP_WIDTH*(SCREEN_SIZE[1]//TILE_SIZE)):#This calculates the amount of cells wide each tile is then multiplies it by the number of tiles
+	# 		for x in range(MAP_WIDTH*(SCREEN_SIZE[0]//TILE_SIZE)):
+	# 			if self.nodes[y][x] != False:#If there is a node present
+	# 				if x != 0:#If not at a border
+	# 					if self.nodes[y][x - 1]:# if the node is not false
+	# 						self.nodes[y][x].left = self.nodes[y][x - 1]
+	# 						self.nodes[y][x].neighbours.append(self.nodes[y][x].left)
+	#
+	# 					if y != 0:
+	# 						if self.nodes[y][x-1] != False and self.nodes[y-1][x] != False:#This is in order to prevent clipping through corners
+	# 							if self.nodes[y - 1][x - 1]:
+	# 								self.nodes[y][x].topLeft = self.nodes[y - 1][x - 1]
+	# 								self.nodes[y][x].neighbours.append(self.nodes[y][x].topLeft)
+	#
+	# 					if y != MAP_WIDTH * (SCREEN_SIZE[0] // TILE_SIZE) - 1:
+	# 						if self.nodes[y][x-1] != False and self.nodes[y+1][x] != False:
+	# 							if self.nodes[y + 1][x - 1]:
+	# 								self.nodes[y][x].bottomLeft = self.nodes[y + 1][x - 1]
+	# 								self.nodes[y][x].neighbours.append(self.nodes[y][x].bottomLeft)
+	#
+	# 				if x != MAP_WIDTH*(SCREEN_SIZE[0]//TILE_SIZE) - 1:
+	# 					if self.nodes[y][x+1]:
+	# 						self.nodes[y][x].right = self.nodes[y][x+1]
+	# 						self.nodes[y][x].neighbours.append(self.nodes[y][x].right)
+	#
+	# 					if y != 0:
+	# 						if self.nodes[y][x+1] != False and self.nodes[y-1][x] != False:
+	# 							if self.nodes[y - 1][x + 1]:
+	# 								self.nodes[y][x].topRight = self.nodes[y - 1][x + 1]
+	# 								self.nodes[y][x].neighbours.append(self.nodes[y][x].topRight)
+	#
+	# 					if y != MAP_WIDTH * (SCREEN_SIZE[0] // TILE_SIZE) - 1:
+	# 						if self.nodes[y][x+1] != False and self.nodes[y+1][x] != False:
+	# 							if self.nodes[y +1][x + 1]:
+	# 								self.nodes[y][x].bottomRight = self.nodes[y +1][x + 1]
+	# 								self.nodes[y][x].neighbours.append(self.nodes[y][x].bottomRight)
+	#
+	# 				if y != 0:
+	# 					if self.nodes[y-1][x]:
+	# 						self.nodes[y][x].up = self.nodes[y-1][x]
+	# 						self.nodes[y][x].neighbours.append(self.nodes[y][x].up)
+	#
+	# 				if y != MAP_WIDTH * (SCREEN_SIZE[0] // TILE_SIZE) - 1:
+	# 					if self.nodes[y+1][x]:
+	# 						self.nodes[y][x].down = self.nodes[y+1][x]
+	# 						self.nodes[y][x].neighbours.append(self.nodes[y][x].down)
 
 	'''
 	Name: draw
@@ -418,9 +418,11 @@ class Explosion(pygame.sprite.Sprite):
 		if collisions != []:
 			for col in collisions:
 				distance = math.sqrt(((col.mapX - self.mapX)**2)+((col.mapY - self.mapY)**2))
-				if distance < (self.height//2)//2:
+				#Close proximity damage
+				if distance //4 < (self.height//2)//2:
 					col.takeDamage(40)
-				elif distance < self.height//2:
+				#Far proximity damage
+				elif distance - col.height < self.height//2:
 					col.takeDamage(10)
 
 		if pygame.time.get_ticks() - self.explosionTime > 250:
@@ -462,6 +464,9 @@ class Wall(pygame.sprite.Sprite):
 			pygame.draw.rect(self.image, RED, (0, 0, self.width, self.height))
 		elif self.hp < 7:
 			pygame.draw.rect(self.image, GREEN, (0, 0, self.width, self.height))
+
+	def __repr__(self):
+		return f"{self.mapX}, {self.mapY}, wall"
 
 '''
 Name: Character
@@ -843,53 +848,157 @@ class Enemy(pygame.sprite.Sprite):
 			enemyList.remove(self)
 			self.kill()
 
+class ServerEnemy:
+	def __init__(self, x, y):
+		self.width = TILE_SIZE
+		self.height = TILE_SIZE
+		self.mapX = 1000 + x
+		self.mapY = 1000 + y
+		self.startTime = False
 
-	# # def fire(self, coOrds, calculated=False):
-	# # 	if calculated == False:
-	# # 		sides = [self.rect.x-coOrds[0], self.rect.y-coOrds[1]] #calculates the vector
-	# # 		hypotenuse = math.sqrt((sides[0]**2)+(sides[1]**2)) #Divides the hypotenuse to work out how many seconds it will take to reach the mouse
-	# # 		seconds = hypotenuse/10
-	# # 		for count in range(len(sides)):
-	# # 			sides[count] = sides[count]*-1
-	# # 			sides[count] = sides[count]/seconds #divides the sides by the amount of seconds to work out how much the axis should increment per second
-	# # 		self.tell_server("projectile", sides)
-	# # 	else:
-	# # 		sides = coOrds
-	# # 	b = Bullet(self.mapX, self.mapY, sides)
-	# # 	bullets.add(b)
-	#
-	# def rotate(self):
-	# 	angle = 0
-	# 	if self.direction == "DOWN":
-	# 		angle = 180
-	# 	elif self.direction == "LEFT":
-	# 		angle = 90
-	# 	elif self.direction == "RIGHT":
-	# 		angle = 270
-	#
-	#
-	# 	self.image = pygame.transform.rotate(self.image_orig,angle)
-	#
-	# def tell_server(self, action, coOrds =  None):
-	# 	if self.connection != None:
-	# 		if action == "move":
-	# 			packet = {"command":"ENEMY_MOVE","data":{"xPos":self.mapX, "yPos":self.mapY}}
-	# 			self.connection.send((json.dumps(packet)+"#").encode())
-	# 		elif action == "projectile":
-	# 			packet = {"command": "ENEMY_PROJECTILE", "data": {"xPos": self.rect.x+(self.width//2)-2, "yPos":self.rect.y-2, "coOrds":coOrds}}
-	# 			self.connection.send((json.dumps(packet) + "#").encode())
-	#
-	# def move(self):
-	# 	keys = pygame.key.get_pressed()
-	# 	velocity = 6
-	# 	if keys[pygame.K_RIGHT] == True:#Account for diagonal speed
-	# 		if keys[pygame.K_UP] == True or keys[pygame.K_DOWN] == True:
-	# 			velocity = math.floor(velocity *0.7)
-	#
-	#
-	# 	elif keys[pygame.K_LEFT] == True:
-	# 		if keys[pygame.K_UP] == True or keys[pygame.K_DOWN] == True:
-	# 			velocity =  math.floor(velocity *0.7)
-	#
-	#
+	def locate(self, playerList, world):#could do with Nodes
+		shortestDis = False
+		target = False
+		if playerList:#If a player has been sighted
+			for player in playerList:#This finds the closest one
+				distance = (self.mapX - player.mapX), (self.mapY - player.mapY)
+				hypotenuse = math.sqrt((distance[0]**2)+(distance[1]**2))
+				if not shortestDis or hypotenuse < shortestDis:
+					target = player
+					shortest = hypotenuse
+		#A* search
+		paths = priorityQueue()# structure of each entry - [Node name, path cost, combined heuristic (distance from Node + The path ), 	[Node paths]]
+		goalNode = world.nodes[target.mapY//TILE_SIZE][target.mapX//TILE_SIZE]
+		solution = False
+		X = int(self.mapX//TILE_SIZE)#Need the location of the enemy in reference to Nodes
+		Y = int(self.mapY//TILE_SIZE)
+		paths.enqueue([world.nodes[Y][X], 0, math.sqrt(((world.nodes[Y][X].mapX - target.mapX)**2)+((world.nodes[Y][X].mapY - target.mapY)**2)), []])#This is the start node
+		visited = []
+		while not solution:
+			current = paths.dequeue()
+			visited.append(current[0])
+			for neighbour in current[0].neighbours:#Evaluates all neighbours to be queued
+				# if neighbour:
+				present = False#This checks to ensure that there aren't duplicates of the same Node being added
 
+				#Checking the node hasn't already been checked or queued
+				if neighbour in visited:
+					present = True
+				else:
+					for path in paths.queue:
+						if neighbour == path[0]:
+							present = True
+							#This updates a path if a shorter route to the same node is found
+							if path[1] > current[1] + abs(math.sqrt(((neighbour.mapX - target.mapX)**2)+((neighbour.mapY - target.mapY)**2))):
+								path[1] = current[1] + abs(math.sqrt(((neighbour.mapX - target.mapX)**2)+((neighbour.mapY - target.mapY)**2)))
+								path[2] = abs(math.sqrt(((neighbour.mapX - current[0].mapX) ** 2)+((neighbour.mapY - current[0].mapY)**2))) + abs(math.sqrt(((neighbour.mapX - target.mapX)**2)+((neighbour.mapY - target.mapY)**2)))
+								pathNodes = current[3]
+								pathNodes.append(current[0])
+								path[3] = pathNodes
+								paths.insert(path)
+
+
+
+				if not present:
+					pathNodes = current[3][:]
+					pathNodes.append(current[0])
+					if neighbour == goalNode:
+						solution = True
+						successfulPath = pathNodes
+						del(paths)
+						return successfulPath
+
+					else:
+						paths.enqueue([neighbour, abs(math.sqrt(((neighbour.mapX - current[0].mapX) ** 2)+((neighbour.mapY - current[0].mapY)**2))) + current[1],#this calculates the hypotenuse from one neighbour to another then adds the previous nodes path cost
+								  abs(math.sqrt(((neighbour.mapX - current[0].mapX) ** 2)+((neighbour.mapY - current[0].mapY)**2))) + abs(math.sqrt(((neighbour.mapX - target.mapX)**2)+((neighbour.mapY - target.mapY)**2))), pathNodes])
+
+			if current[0] == goalNode:
+				solution = True
+
+def rects_intersect(x1, y1, w1, h1, x2, y2, w2, h2):
+	return (x1 < x2 + w2 and x1 + w1 > x2 and y1 < y2 + h2 and y1 + h1 > y2)
+
+def nodeSetup(obstacleList, nodes):
+	sortedObstacles = []
+	for obstacle in obstacleList:
+		#If the list is empty
+		if len(sortedObstacles) == 0:
+			sortedObstacles.append(obstacle)
+
+		#If this obstacle is the farthest in the list
+		elif sortedObstacles[len(sortedObstacles)-1].mapX <= obstacle.mapX:
+			sortedObstacles.append(obstacle)
+
+		#Linear insert
+		else:
+			inserted = False
+			count = 0
+			while inserted == False:
+				if obstacle.mapX < sortedObstacles[count].mapX:
+					sortedObstacles.insert(count, obstacle)
+					inserted = True
+				else:
+					count += 1
+
+
+
+	for y in range (MAP_WIDTH*(SCREEN_SIZE[1]//TILE_SIZE)):
+		for x in range (MAP_WIDTH*(SCREEN_SIZE[0]//TILE_SIZE)):
+			collision = False
+			for obstacle in sortedObstacles:
+				if rects_intersect(x*40, y*40, TILE_SIZE, TILE_SIZE, obstacle.mapX - (obstacle.width//2), obstacle.mapY - (obstacle.height//2), obstacle.width, obstacle.height):
+					collision = True
+			if not collision:
+				nodes[y][x] = Node((x*TILE_SIZE) + (TILE_SIZE//2),(y*TILE_SIZE) + (TILE_SIZE//2))
+
+	# This assigns the neighbours to the nodes
+	for y in range(MAP_WIDTH * (SCREEN_SIZE[
+									1] // TILE_SIZE)):  # This calculates the amount of cells wide each tile is then multiplies it by the number of tiles
+		for x in range(MAP_WIDTH * (SCREEN_SIZE[0] // TILE_SIZE)):
+			if nodes[y][x] != False:  # If there is a node present
+				if x != 0:  # If not at a border
+					if nodes[y][x - 1]:  # if the node is not false
+						nodes[y][x].left = nodes[y][x - 1]
+						nodes[y][x].neighbours.append(nodes[y][x].left)
+
+					if y != 0:
+						if nodes[y][x - 1] != False and nodes[y - 1][
+							x] != False:  # This is in order to prevent clipping through corners
+							if nodes[y - 1][x - 1]:
+								nodes[y][x].topLeft = nodes[y - 1][x - 1]
+								nodes[y][x].neighbours.append(nodes[y][x].topLeft)
+
+					if y != MAP_WIDTH * (SCREEN_SIZE[0] // TILE_SIZE) - 1:
+						if nodes[y][x - 1] != False and nodes[y + 1][x] != False:
+							if nodes[y + 1][x - 1]:
+								nodes[y][x].bottomLeft = nodes[y + 1][x - 1]
+								nodes[y][x].neighbours.append(nodes[y][x].bottomLeft)
+
+				if x != MAP_WIDTH * (SCREEN_SIZE[0] // TILE_SIZE) - 1:
+					if nodes[y][x + 1]:
+						nodes[y][x].right = nodes[y][x + 1]
+						nodes[y][x].neighbours.append(nodes[y][x].right)
+
+					if y != 0:
+						if nodes[y][x + 1] != False and nodes[y - 1][x] != False:
+							if nodes[y - 1][x + 1]:
+								nodes[y][x].topRight = nodes[y - 1][x + 1]
+								nodes[y][x].neighbours.append(nodes[y][x].topRight)
+
+					if y != MAP_WIDTH * (SCREEN_SIZE[0] // TILE_SIZE) - 1:
+						if nodes[y][x + 1] != False and nodes[y + 1][x] != False:
+							if nodes[y + 1][x + 1]:
+								nodes[y][x].bottomRight = nodes[y + 1][x + 1]
+								nodes[y][x].neighbours.append(nodes[y][x].bottomRight)
+
+				if y != 0:
+					if nodes[y - 1][x]:
+						nodes[y][x].up = nodes[y - 1][x]
+						nodes[y][x].neighbours.append(nodes[y][x].up)
+
+				if y != MAP_WIDTH * (SCREEN_SIZE[0] // TILE_SIZE) - 1:
+					if nodes[y + 1][x]:
+						nodes[y][x].down = nodes[y + 1][x]
+						nodes[y][x].neighbours.append(nodes[y][x].down)
+
+	return nodes
