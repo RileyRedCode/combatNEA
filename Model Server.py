@@ -1,6 +1,6 @@
 import socket, threading, json, time, random, pygame
 from MapGen import MapGenerator, ServerObstacle
-from game_classes import nodeSetup, TILE_SIZE, MAP_WIDTH, SCREEN_SIZE
+from game_classes import nodeSetup, ServerEnemy, TILE_SIZE, MAP_WIDTH, SCREEN_SIZE
 
 HOST = '127.0.0.1'
 PORT = 50000
@@ -19,14 +19,18 @@ def recv_from_client(conn,client_list):
         # else:
         # 	print("Problem", packet)
 
-def gameLoop(conn, clientList):
+def gameLoop(clientList, serverEnemies):
     while game:
+        for enemy in serverEnemies:
+            path = enemy.locate(clientList, serverNodes)
+            print(path)
         clock.tick(60)
 
 #Player and connections
 s = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
 s.bind( (HOST,PORT) )
 client_list = []
+players = []
 player_positions = [(0,0),(0,0)]
 
 #Map
@@ -41,8 +45,16 @@ serverNodes = [[False for count in range(MAP_WIDTH*(SCREEN_SIZE[1]//TILE_SIZE))]
 #this * unpacks the elements
 nodes = nodeSetup(serverObstacles, serverNodes)
 
+#Enemies
+#Server enemies is a list of the actual objects whereas enemies just contains the data required to send to clients
+serverEnemies = []
+serverEnemies.append(ServerEnemy(1000, 1000))
 enemies = []
-enemies.append([1000 ,1000])
+enemies.append([1000, 1000])
+# enemies.append([1000, 1500])
+# enemies.append([1000, 2000])
+# enemies.append([1500, 1000])
+# enemies.append([1500, 1500])
 
 
 
@@ -80,7 +92,7 @@ while True:
     # 	time.sleep(1)
     if len(client_list) == 2:
         game = True
-        threading.Thread(target=gameLoop, args=(conn, client_list[0],)).start()
+        threading.Thread(target=gameLoop, args=(client_list[0], serverEnemies,)).start()
         message = {"command": "START"}
         for c in client_list:
             c.send(json.dumps(message).encode())

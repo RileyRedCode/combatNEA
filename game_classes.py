@@ -36,6 +36,9 @@ class Node:
 		self.bottomLeft = False
 		self.neighbours = []
 
+	def retLocation(self):
+		return (self.mapX - (TILE_SIZE//2)) // TILE_SIZE ,(self.mapY - (TILE_SIZE//2)) // TILE_SIZE
+
 	'''
 	Name: __repr__
 	Parameters: None
@@ -856,7 +859,7 @@ class ServerEnemy:
 		self.mapY = 1000 + y
 		self.startTime = False
 
-	def locate(self, playerList, world):#could do with Nodes
+	def locate(self, playerList, serverNodes):#could do with Nodes
 		shortestDis = False
 		target = False
 		if playerList:#If a player has been sighted
@@ -868,11 +871,11 @@ class ServerEnemy:
 					shortest = hypotenuse
 		#A* search
 		paths = priorityQueue()# structure of each entry - [Node name, path cost, combined heuristic (distance from Node + The path ), 	[Node paths]]
-		goalNode = world.nodes[target.mapY//TILE_SIZE][target.mapX//TILE_SIZE]
+		goalNode = serverNodes[target.mapY//TILE_SIZE][target.mapX//TILE_SIZE]
 		solution = False
 		X = int(self.mapX//TILE_SIZE)#Need the location of the enemy in reference to Nodes
 		Y = int(self.mapY//TILE_SIZE)
-		paths.enqueue([world.nodes[Y][X], 0, math.sqrt(((world.nodes[Y][X].mapX - target.mapX)**2)+((world.nodes[Y][X].mapY - target.mapY)**2)), []])#This is the start node
+		paths.enqueue([serverNodes[Y][X], 0, math.sqrt(((serverNodes[Y][X].mapX - target.mapX)**2)+((serverNodes[Y][X].mapY - target.mapY)**2)), []])#This is the start node
 		visited = []
 		while not solution:
 			current = paths.dequeue()
@@ -904,7 +907,9 @@ class ServerEnemy:
 					pathNodes.append(current[0])
 					if neighbour == goalNode:
 						solution = True
-						successfulPath = pathNodes
+						successfulPath = []
+						for node in pathNodes:
+							successfulPath.append(node.retLocation())
 						del(paths)
 						return successfulPath
 
@@ -914,6 +919,7 @@ class ServerEnemy:
 
 			if current[0] == goalNode:
 				solution = True
+
 
 def rects_intersect(x1, y1, w1, h1, x2, y2, w2, h2):
 	return (x1 < x2 + w2 and x1 + w1 > x2 and y1 < y2 + h2 and y1 + h1 > y2)

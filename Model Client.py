@@ -58,7 +58,7 @@ def recv_from_server(conn):
 
             if packet["command"] == "ENEMIES":
                 for i in packet["data"]:
-                    enemyList.add(Enemy(i[0], i[1]))
+                    enemyList.add(Enemy(*i))
 
             if packet["command"] == "MOVE":
                 playerTwo.mapX = packet["data"]["xPos"]
