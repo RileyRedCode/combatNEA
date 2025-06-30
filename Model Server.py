@@ -21,9 +21,9 @@ def recv_from_client(conn,client_list):
 
 def gameLoop(clientList, serverEnemies):
     while game:
-        for enemy in serverEnemies:
-            path = enemy.locate(clientList, serverNodes)
-            print(path)
+        # for enemy in serverEnemies:
+        #     path = enemy.locate(clientList, serverNodes)
+        #     print(path)
         clock.tick(60)
 
 #Player and connections

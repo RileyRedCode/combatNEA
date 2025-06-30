@@ -921,8 +921,11 @@ class ServerEnemy:
 				solution = True
 
 
-def rects_intersect(x1, y1, w1, h1, x2, y2, w2, h2):
-	return (x1 < x2 + w2 and x1 + w1 > x2 and y1 < y2 + h2 and y1 + h1 > y2)
+def checkCollision(x1, x2, y1, y2, ox1, ox2, oy1, oy2):
+	if ((x1 <= ox1 < x2) or (x1 < ox2 <= x2) or (ox1 < x1 < ox2)) and ((y1 <= oy1 < y2) or (y1 < oy2 <= y2) or (oy1 < y1 < oy2)):
+		return True
+	else:
+		return False
 
 def nodeSetup(obstacleList, nodes):
 	sortedObstacles = []
@@ -946,13 +949,11 @@ def nodeSetup(obstacleList, nodes):
 				else:
 					count += 1
 
-
-
 	for y in range (MAP_WIDTH*(SCREEN_SIZE[1]//TILE_SIZE)):
 		for x in range (MAP_WIDTH*(SCREEN_SIZE[0]//TILE_SIZE)):
 			collision = False
-			for obstacle in sortedObstacles:
-				if rects_intersect(x*40, y*40, TILE_SIZE, TILE_SIZE, obstacle.mapX - (obstacle.width//2), obstacle.mapY - (obstacle.height//2), obstacle.width, obstacle.height):
+			for obstacle in obstacleList:
+				if checkCollision(x*40, x*40 + TILE_SIZE, y*40, y*40 + TILE_SIZE, obstacle.mapX - (obstacle.width//2), obstacle.mapX + (obstacle.width//2), obstacle.mapY - (obstacle.height//2), obstacle.mapY + (obstacle.height//2)):
 					collision = True
 			if not collision:
 				nodes[y][x] = Node((x*TILE_SIZE) + (TILE_SIZE//2),(y*TILE_SIZE) + (TILE_SIZE//2))
