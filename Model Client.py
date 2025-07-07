@@ -36,9 +36,13 @@ def recv_from_server(conn):
         if data:
 
             packet = data.decode()
-            print(packet)
             packet = packet.split("#")[0]
-            packet = json.loads(packet)
+            print(packet)
+            try:
+                packet = json.loads(packet)
+
+            except:#continue prevents the code from trying to continue analysing this packet
+                continue
 
             if packet["command"] == "START":
                 Waiting = False
@@ -66,6 +70,20 @@ def recv_from_server(conn):
 
             if packet["command"] == "PROJECTILE":
                 playerTwo.fire(packet["data"]["coOrds"], True)
+
+            if packet["command"] == "ENEMYACTIONS":
+                for command in packet["data"]:
+                    for enemy in enemyList:
+                        if enemy.id == command["id"]:
+                            if not enemy.startTime:
+                                if command["action"] == "MOVE":
+                                    enemy.mapX, enemy.mapY = command["x"], command["y"]
+
+                                elif command["action"] == "ATTACK":
+                                    enemy.startTime = pygame.time.get_ticks()
+
+                                elif command["action"] == "DIE":
+                                    enemy.attack()
 
 
 s = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
@@ -160,18 +178,20 @@ while running == True:
     bullets.update()
     explosions.update()
     player.move()
-
     player.camera.worldAdjust(SCREEN, world, characters, enemyList)
     player.camera.reAdjust()
     player.camera.bulletAdjust(bullets, explosions)
     player.camera.obstacleAdjust(obstacleList)
     for enemy in enemyList:
-        if not enemy.startTime:
-            path = enemy.locate([player], world)
-            enemy.travel(path)
-        else:
+        # If enough time has passed
+        if pygame.time.get_ticks() - enemy.startTime >= 200 and enemy.startTime:
             enemy.attack()
-        # print(enemy.mapX, enemy.mapY)
+        # if not enemy.startTime:
+        #     path = enemy.locate([player], world)
+        #     enemy.travel(path)
+        # else:
+        #     enemy.attack()
+        # # print(enemy.mapX, enemy.mapY)
 
     world.draw(SCREEN)
     explosions.draw(SCREEN)
