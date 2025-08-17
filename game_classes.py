@@ -11,6 +11,12 @@ TERRAIN_SIZE = (800, 800)
 MAP_WIDTH = 20
 MAP_RES = (TERRAIN_SIZE[0]*MAP_WIDTH, TERRAIN_SIZE[1]*MAP_WIDTH)
 
+def checkCollision(x1, x2, y1, y2, ox1, ox2, oy1, oy2):#Give the start and end points of each objects x and y axis
+	if ((x1 <= ox1 < x2) or (x1 < ox2 <= x2) or (ox1 < x1 < ox2)) and ((y1 <= oy1 < y2) or (y1 < oy2 <= y2) or (oy1 < y1 < oy2)):
+		return True
+	else:
+		return False
+
 '''
 Name: Node
 Purpose: These are invisible points which are scattered around the map in a grid 
@@ -352,6 +358,7 @@ class Bullet(pygame.sprite.Sprite):
 		self.mapX = x
 		self.mapY = y
 		self.direction = direction
+		self.damage = 5
 
 	'''
 	Name: update
@@ -360,21 +367,55 @@ class Bullet(pygame.sprite.Sprite):
 	Purpose: This increments the x and y co-ordinates as well as checking if the bullet has collided. If the bullet has
 	passed the edge of the map or collided it will kill itself
 	'''
-	def update(self):
+	def update(self, enemyList, serverSide=False):
 		self.mapX += self.direction[0]
 		self.mapY += self.direction[1]
-		collisions = pygame.sprite.spritecollide(self,obstacleList,False)
-		if collisions != []:
-			for w in collisions:
-				w.takeDamage()
+		for enemy in enemyList:
+			if checkCollision(self.mapX - 2, self.mapX + 2, self.mapY - 2, self.mapY + 2,
+							  enemy.mapX - (enemy.width//2), enemy.mapX + (enemy.width//2), enemy.mapY - (enemy.height//2), enemy.mapY + (enemy.height//2)):
+				if serverSide:
+					return True, enemy
+
+				else:
+					bullets.remove(self)
+					self.kill()
+
+		if self.mapY < 0 or self.mapY> MAP_RES[1] or self.mapX< 0 or self.mapX > MAP_RES[0]:#If outside the map
+			if serverSide:
+				return False, "kill"
+
+			else:
 				bullets.remove(self)
 				self.kill()
-		if self.mapY < 0 or self.mapY> MAP_RES[1]:
-			bullets.remove(self)
-			self.kill()
-		if self.mapX< 0 or self.mapX > MAP_RES[0]:
-			bullets.remove(self)
-			self.kill()
+
+		return False, None
+
+	def collisionCheck(self, enemyList, serverSide=False):
+		for enemy in enemyList:
+			# print(self.mapX - 2, self.mapX + 2, self.mapY - 2, self.mapY + 2,
+			# 				  enemy.mapX - (enemy.width//2), enemy.mapX + (enemy.width//2), enemy.mapY - (enemy.height//2), enemy.mapY + (enemy.height//2))
+			# print(checkCollision(self.mapX - 2, self.mapX + 2, self.mapY - 2, self.mapY + 2,
+			# 				  enemy.mapX - (enemy.width//2), enemy.mapX + (enemy.width//2), enemy.mapY - (enemy.height//2), enemy.mapY + (enemy.height//2)))
+			if checkCollision(self.mapX - 2, self.mapX + 2, self.mapY - 2, self.mapY + 2,
+							  enemy.mapX - (enemy.width//2), enemy.mapX + (enemy.width//2), enemy.mapY - (enemy.height//2), enemy.mapY + (enemy.height//2)):
+				if serverSide:
+					return True, enemy
+
+				else:
+					bullets.remove(self)
+					self.kill()
+
+		if self.mapY < 0 or self.mapY> MAP_RES[1] or self.mapX< 0 or self.mapX > MAP_RES[0]:#If outside the map
+			if serverSide:
+				return False, "kill"
+
+			else:
+				bullets.remove(self)
+				self.kill()
+
+		return False, None
+		
+
 
 '''
 Name: Explosion
@@ -419,7 +460,7 @@ class Explosion(pygame.sprite.Sprite):
 			for col in collisions:
 				distance = math.sqrt(((col.mapX - self.mapX)**2)+((col.mapY - self.mapY)**2))
 				#Close proximity damage
-				if distance //4 < (self.height//2)//2:
+				if distance - col.height < (self.height//2)//2:
 					col.takeDamage(40)
 				#Far proximity damage
 				elif distance - col.height < self.height//2:
@@ -551,7 +592,7 @@ class Character(pygame.sprite.Sprite):
 				packet = {"command":"MOVE","data":{"xPos":self.mapX, "yPos":self.mapY}}
 				self.connection.send((json.dumps(packet)+"#").encode())
 			elif action == "projectile":
-				packet = {"command": "PROJECTILE", "data": {"xPos": self.rect.x+(self.width//2)-2, "yPos":self.rect.y-2, "coOrds":coOrds}}
+				packet = {"command": "PROJECTILE", "data": {"xPos": self.mapX, "yPos":self.mapY, "coOrds":coOrds}}
 				self.connection.send((json.dumps(packet) + "#").encode())
 
 	'''
@@ -736,6 +777,7 @@ class Enemy(pygame.sprite.Sprite):
 		self.direction = "UP"
 		self.startTime = False
 		self.id = id
+		self.health = 100
 
 	'''
 	Name: locate
@@ -847,6 +889,11 @@ class Enemy(pygame.sprite.Sprite):
 		enemyList.remove(self)
 		self.kill()
 
+	def takeDamage(self, damage):
+		self.health -= damage
+		if self.health <= 0:
+			self.health = 0
+
 class ServerEnemy:
 	idcount = 0
 	def __init__(self, x, y):
@@ -951,18 +998,11 @@ class ServerEnemy:
 
 			return packet
 
-	def take_Damage(self, damage):
+	def takeDamage(self, damage):
 		self.health -= damage
 		if self.health <= 0:
 			self.health = 0
-			self.attack
 
-
-def checkCollision(x1, x2, y1, y2, ox1, ox2, oy1, oy2):
-	if ((x1 <= ox1 < x2) or (x1 < ox2 <= x2) or (ox1 < x1 < ox2)) and ((y1 <= oy1 < y2) or (y1 < oy2 <= y2) or (oy1 < y1 < oy2)):
-		return True
-	else:
-		return False
 
 def nodeSetup(obstacleList, nodes):
 	sortedObstacles = []

@@ -1,6 +1,6 @@
 import socket, threading, json, time, pygame
 from MapGen import MapGenerator, ServerObstacle
-from game_classes import nodeSetup, ServerEnemy, TILE_SIZE, MAP_WIDTH, SCREEN_SIZE
+from game_classes import nodeSetup, ServerEnemy, Bullet, TILE_SIZE, MAP_WIDTH, SCREEN_SIZE
 
 HOST = '127.0.0.1'
 PORT = 50000
@@ -19,19 +19,37 @@ def recv_from_client(conn,client_list):
                 else:
                     if packet["command"] == "MOVE":
                         players[conn]["location"] = [packet["data"]["xPos"], packet["data"]["yPos"]]
+                    if packet["command"] == "PROJECTILE":
+                        serverBullets.add(Bullet(packet["data"]["xPos"], packet["data"]["yPos"], packet["data"]["coOrds"]))
+
 
 def send_to_client(client_list, packet):
     for client in client_list:
         client.send((json.dumps(packet) + "#").encode())
 
-def gameLoop(players, serverEnemies, client_list):
+def gameLoop(players, serverEnemies, client_list, serverBullets):
     while game:
+        for bullet in serverBullets:#NOTE IDEA what if I grouped this into a list of enemies taking damage rather than individual messages
+            result = bullet.collisionCheck(serverEnemies, True)
+            if result[0]:#If the bullet has collided
+                result[1].takeDamage(bullet.damage)
+                packet  = {"command":"ENEMYDAMAGE","data":{"id":result[1].id, "amount":bullet.damage}}
+                send_to_client(client_list, packet)
+                serverBullets.remove(bullet)
+                bullet.kill()
+            elif result[1] == "kill":
+                serverBullets.remove(bullet)
+                bullet.kill()
+            else:
+                bullet.mapX += bullet.direction[0]
+                bullet.mapY += bullet.direction[1]
+
+        # Determining the action for each enemy
         enemyActions = []
-        #Determining the action for each enemy
         for enemy in serverEnemies:
             path = enemy.locate(players, serverNodes)
             enemyActions.append(enemy.travel(path))
-            if pygame.time.get_ticks() - enemy.startTime >= 200 and enemy.startTime:
+            if (pygame.time.get_ticks() - enemy.startTime >= 200 and enemy.startTime) or enemy.health <= 0 :
                 serverEnemies.remove(enemy)
 
         packet = {"command":"ENEMYACTIONS", "data":[]}
@@ -45,8 +63,9 @@ def gameLoop(players, serverEnemies, client_list):
 
                 elif action[1] == "ENEMYDIE":
                     packet["data"].append({"id":action[0], "action": "DIE"})
-        send_to_client(client_list, packet)
 
+
+        send_to_client(client_list, packet)
         clock.tick(60)
 
 #Player and connections
@@ -74,8 +93,12 @@ serverEnemies = []
 enemies = []
 serverEnemies.append(ServerEnemy(3000, 3000))
 serverEnemies.append(ServerEnemy(3000, 4000))
+# serverEnemies.append(ServerEnemy(5000, 4000))
+# serverEnemies.append(ServerEnemy(3000, 5000))
 for enemy in serverEnemies:
     enemies.append([enemy.mapX, enemy.mapY, enemy.id])
+
+serverBullets = pygame.sprite.Group()
 
 
 
@@ -117,7 +140,7 @@ while True:
     # 	time.sleep(1)
     if len(client_list) == 2:
         game = True
-        threading.Thread(target=gameLoop, args=(players, serverEnemies, client_list)).start()
+        threading.Thread(target=gameLoop, args=(players, serverEnemies, client_list, serverBullets)).start()
         message = {"command": "START"}
 
         for c in client_list:

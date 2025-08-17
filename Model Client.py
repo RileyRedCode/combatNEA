@@ -71,6 +71,11 @@ def recv_from_server(conn):
             if packet["command"] == "PROJECTILE":
                 playerTwo.fire(packet["data"]["coOrds"], True)
 
+            if packet["command"] == "ENEMYDAMAGE":
+                for enemy in enemyList:
+                    if enemy.id == packet["data"]["id"]:
+                        enemy.takeDamage(packet["data"]["amount"])
+
             if packet["command"] == "ENEMYACTIONS":
                 for command in packet["data"]:
                     for enemy in enemyList:
@@ -175,7 +180,7 @@ while running == True:
                 coOrds = pygame.mouse.get_pos()
                 player.fire(coOrds)
 
-    bullets.update()
+    bullets.update(enemyList)
     explosions.update()
     player.move()
     player.camera.worldAdjust(SCREEN, world, characters, enemyList)
