@@ -103,12 +103,14 @@ class Hud:
 	'''
 	def __init__(self, owner):
 		self.owner = owner
+		self.animation = False#This indicates when an animation is playing
 		#Health bar section
 		self.displayHealth = 100
 		self.displayDamage = 0
 		# dimensions are 110 by 30
 		self.healthbar = pygame.image.load("healthbar.png")
 		self.healthbar = pygame.transform.scale(self.healthbar,(220, 60))
+
 		#colours
 		self.healthBgColour = (25, 25, 25)
 		self.white = (255, 255, 255)
@@ -116,12 +118,17 @@ class Hud:
 
 		self.health = pygame.surface.Surface((self.displayHealth, 40))
 		self.health.fill(self.healthColour)
-
 		self.damage = pygame.surface.Surface((self.displayHealth, 40))
 		self.damage.fill(self.white)
-
 		self.background = pygame.surface.Surface((self.displayHealth*2, 40))
 		self.background.fill(self.healthBgColour)
+
+		#Talking
+		self.talkBg = pygame.image.load("Assets/talkBg.png")
+		self.talkBgRect = self.talkBg.get_rect()
+		self.talkBgRect.center = (400, 400)
+		self.speaker = pygame.image.load("Assets/speaker.png")
+		self.speaker = pygame.transform.scale(self.speaker, (800, 800))
 
 	'''
 	Name: draw
@@ -136,6 +143,9 @@ class Hud:
 		screen.blit(self.damage,((TILE_SIZE//4) + 10 + (self.displayHealth * 2) - 1, TILE_SIZE//4 + 10))
 		screen.blit(self.health,(TILE_SIZE//4 + 10 - 1, TILE_SIZE//4 + 10))
 		screen.blit(self.healthbar, (TILE_SIZE//4, TILE_SIZE//4))
+
+		if self.owner.talking:
+			screen.blit(self.talkBg, self.talkBgRect)
 
 	'''
 	Name: healthCalc
@@ -473,6 +483,7 @@ class Character(pygame.sprite.Sprite):
 		self.hud = Hud(self)
 		self.health = 100
 		self.invincible = False
+		self.talking = False
 
 	'''
 	Name: fire
@@ -520,14 +531,18 @@ class Character(pygame.sprite.Sprite):
 	Purpose: This function sends a message to the server so that the saem action can be completed on other player's 
 	games.
 	'''
-	def tell_server(self, action, coOrds =  None):
+	def tell_server(self, action, data =  None):
 		if self.connection != None:
 			if action == "move":
 				packet = {"command":"MOVE","data":{"xPos":self.mapX, "yPos":self.mapY}}
-				self.connection.send((json.dumps(packet)+"#").encode())
 			elif action == "projectile":
-				packet = {"command": "PROJECTILE", "data": {"xPos": self.mapX, "yPos":self.mapY, "coOrds":coOrds}}
-				self.connection.send((json.dumps(packet) + "#").encode())
+				packet = {"command": "PROJECTILE", "data": {"xPos": self.mapX, "yPos":self.mapY, "coOrds":data}}
+			elif action == "kill":
+				packet = {"command": "CONFIRMATION", "data": {"id": data}}
+			elif action == "talk":
+				packet = {"command": "TALK", "data": {"id": data}}
+			self.connection.send((json.dumps(packet) + "#").encode())
+
 
 	'''
 	Name: move
@@ -537,70 +552,71 @@ class Character(pygame.sprite.Sprite):
 	multiple directions it will lower the velocity. 
 	'''
 	def move(self):
-		keys = pygame.key.get_pressed()
-		velocity = 6
-		if keys[pygame.K_RIGHT] == True:#Account for diagonal speed
-			if keys[pygame.K_UP] == True or keys[pygame.K_DOWN] == True:
-				velocity = math.floor(velocity *0.7)
+		if not self.talking:
+			keys = pygame.key.get_pressed()
+			velocity = 6
+			if keys[pygame.K_RIGHT] == True:#Account for diagonal speed
+				if keys[pygame.K_UP] == True or keys[pygame.K_DOWN] == True:
+					velocity = math.floor(velocity *0.7)
 
 
-		elif keys[pygame.K_LEFT] == True:
-			if keys[pygame.K_UP] == True or keys[pygame.K_DOWN] == True:
-				velocity =  math.floor(velocity *0.7)
+			elif keys[pygame.K_LEFT] == True:
+				if keys[pygame.K_UP] == True or keys[pygame.K_DOWN] == True:
+					velocity =  math.floor(velocity *0.7)
 
 
-		if keys[pygame.K_UP] == True:
-			self.rect.y -= velocity
-			#self.mapY -= velocity
-			self.direction = "UP"
-			self.rotate()
-			if pygame.sprite.spritecollide(self, obstacleList, False):
-				self.rect.y += velocity
-				#self.mapY += velocity
-			if self.rect.y <0:
-				self.rect.y = 0
-				#self.mapY = 0
-			# if frame
-			self.tell_server("move")
-
-		if keys[pygame.K_DOWN]:
-			self.rect.y += velocity
-			#self.mapY += velocity
-			self.direction = "DOWN"
-			self.rotate()
-			if pygame.sprite.spritecollide(self, obstacleList,False):
+			if keys[pygame.K_UP] == True:
 				self.rect.y -= velocity
 				#self.mapY -= velocity
-			if self.rect.y > SCREEN_SIZE[1]-self.height:
-				self.rect.y = SCREEN_SIZE[1]-self.height
-				#self.mapY = SCREEN_SIZE[1]-self.height
-			self.tell_server("move")
+				self.direction = "UP"
+				self.rotate()
+				if pygame.sprite.spritecollide(self, obstacleList, False):
+					self.rect.y += velocity
+					#self.mapY += velocity
+				if self.rect.y <0:
+					self.rect.y = 0
+					#self.mapY = 0
+				# if frame
+				self.tell_server("move")
 
-		if keys[pygame.K_LEFT]:
-			self.rect.x -= velocity
-			# self.mapX -= math.floor(velocity)
-			self.direction = "LEFT"
-			self.rotate()
-			if pygame.sprite.spritecollide(self, obstacleList,False):
+			if keys[pygame.K_DOWN]:
+				self.rect.y += velocity
+				#self.mapY += velocity
+				self.direction = "DOWN"
+				self.rotate()
+				if pygame.sprite.spritecollide(self, obstacleList,False):
+					self.rect.y -= velocity
+					#self.mapY -= velocity
+				if self.rect.y > SCREEN_SIZE[1]-self.height:
+					self.rect.y = SCREEN_SIZE[1]-self.height
+					#self.mapY = SCREEN_SIZE[1]-self.height
+				self.tell_server("move")
+
+			if keys[pygame.K_LEFT]:
+				self.rect.x -= velocity
+				# self.mapX -= math.floor(velocity)
+				self.direction = "LEFT"
+				self.rotate()
+				if pygame.sprite.spritecollide(self, obstacleList,False):
+					self.rect.x += velocity
+					# self.mapX += velocity
+				if self.rect.x < 0:
+					self.rect.x = 0
+					# self.mapX = 0
+				self.tell_server("move")
+
+			if keys[pygame.K_RIGHT]:
 				self.rect.x += velocity
 				# self.mapX += velocity
-			if self.rect.x < 0:
-				self.rect.x = 0
-				# self.mapX = 0
-			self.tell_server("move")
-
-		if keys[pygame.K_RIGHT]:
-			self.rect.x += velocity
-			# self.mapX += velocity
-			self.direction = "RIGHT"
-			self.rotate()
-			if pygame.sprite.spritecollide(self, obstacleList,False):
-				self.rect.x -= velocity
-				# self.mapX -= velocity
-			if self.rect.x > SCREEN_SIZE[0]-self.width:
-				self.rect.x = SCREEN_SIZE[0]-self.width
-				# self.mapX = SCREEN_SIZE[0]-self.width
-			self.tell_server("move")
+				self.direction = "RIGHT"
+				self.rotate()
+				if pygame.sprite.spritecollide(self, obstacleList,False):
+					self.rect.x -= velocity
+					# self.mapX -= velocity
+				if self.rect.x > SCREEN_SIZE[0]-self.width:
+					self.rect.x = SCREEN_SIZE[0]-self.width
+					# self.mapX = SCREEN_SIZE[0]-self.width
+				self.tell_server("move")
 
 	'''
 	Name: takeDamage
@@ -614,6 +630,19 @@ class Character(pygame.sprite.Sprite):
 			if self.health < 0:
 				self.health = 0
 			self.invincible = pygame.time.get_ticks()
+
+	def checkTalk(self, npcs):
+		if not self.talking:
+			count = 0
+			confirm = False
+			while not confirm and count != len(pygame.sprite.Group.sprites(npcs)):
+				npc = pygame.sprite.Group.sprites(npcs)[count]
+				if checkCollision(self.mapX -(self.width//2), self.mapX +(self.width//2), self.mapY -(self.height//2), self.mapY +(self.height//2),
+								  npc.mapX -(npc.width//2), npc.mapX +(npc.width//2), npc.mapY -(npc.height//2), npc.mapY +(npc.height//2)):
+					self.talking = True
+					confirm = True
+					self.tell_server("talk", npc.id)
+				count += 1
 
 
 '''
@@ -681,8 +710,6 @@ class priorityQueue:
 		self.length -= 1
 		self.enqueue(path)
 
-	# def destroy(self):
-	# 	self.kill()
 
 '''
 Name: Enemy
@@ -839,6 +866,7 @@ class ServerEnemy:
 		self.health = 100
 		self.id = ServerEnemy.idcount
 		ServerEnemy.idcount += 1
+		self.confirm = False
 
 	def locate(self, playerList, serverNodes):
 		shortestDis = False
@@ -980,8 +1008,8 @@ class NPC(pygame.sprite.Sprite):
 				elif self.activity[2] == "down":
 					self.mapY += 2
 				return self.id, self.mapX, self.mapY
-			else:
-				return False
+
+		return False
 
 '''
 Name: nodeSetup

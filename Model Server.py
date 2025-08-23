@@ -21,7 +21,14 @@ def recv_from_client(conn,client_list):
                         players[conn]["location"] = [packet["data"]["xPos"], packet["data"]["yPos"]]
                     if packet["command"] == "PROJECTILE":
                         serverBullets.add(Bullet(packet["data"]["xPos"], packet["data"]["yPos"], packet["data"]["coOrds"]))
-
+                    if packet["command"] == "CONFIRMATION":
+                        for enemy in serverEnemies:
+                            if enemy.id == packet["data"]["id"]:
+                                enemy.confirm = True
+                    if packet["command"] == "TALK":
+                        for npc in serverNPCs:
+                            if npc.id == packet["data"]["id"]:
+                                npc.activity[0] = "talking"
 
 def send_to_client(client_list, packet):
     for client in client_list:
@@ -60,7 +67,7 @@ def gameLoop(players, serverEnemies, client_list, serverBullets):
         for enemy in serverEnemies:
             path = enemy.locate(players, serverNodes)
             enemyActions.append(enemy.travel(path))
-            if (pygame.time.get_ticks() - enemy.startTime >= 200 and enemy.startTime) or enemy.health <= 0 :
+            if ((pygame.time.get_ticks() - enemy.startTime >= 200 and enemy.startTime) or (enemy.health <= 0 and enemy.confirm)):
                 serverEnemies.remove(enemy)
 
         packet = {"command":"ENEMYACTIONS", "data":[]}

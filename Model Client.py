@@ -100,6 +100,7 @@ def recv_from_server(conn):
 
                                 elif command["action"] == "DIE":
                                     enemy.attack()
+                                    player.tell_server("kill", command["id"])
 
 
 s = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
@@ -175,6 +176,7 @@ count = 0
 player = characters.sprites()[0]
 spotting = False
 while running == True:
+    print(player.talking)
     SCREEN.fill(WHITE)
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
@@ -182,7 +184,7 @@ while running == True:
         if event.type == pygame.KEYDOWN:
             keys = pygame.key.get_pressed()
         if event.type == pygame.MOUSEBUTTONUP:
-            if not pygame.mouse.get_pressed()[0] and event.button == 1:
+            if not pygame.mouse.get_pressed()[0] and event.button == 1 and not player.talking:
                 coOrds = pygame.mouse.get_pos()
                 player.fire(coOrds)
 
@@ -193,6 +195,7 @@ while running == True:
     player.camera.reAdjust()
     player.camera.bulletAdjust(bullets, explosions)
     player.camera.obstacleAdjust(obstacleList)
+    player.checkTalk(npcList)
     for enemy in enemyList:
         # If enough time has passed
         if pygame.time.get_ticks() - enemy.startTime >= 200 and enemy.startTime:
