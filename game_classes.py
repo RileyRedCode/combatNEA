@@ -1,4 +1,4 @@
-import pygame, json, math, MapGen
+import pygame, json, math, MapGen, random
 
 WHITE = (255,255,255)
 RED = (255,0,0)
@@ -79,74 +79,6 @@ class World:
 		self.worldSurface = pygame.Surface((MAP_RES))
 		self.worldSurface.blit(self.img, (0, 0))
 		self.nodes = [[False for count in range(MAP_WIDTH*(SCREEN_SIZE[1]//TILE_SIZE))] for i in range(MAP_WIDTH*(SCREEN_SIZE[0]//TILE_SIZE))]#Establishes a plain grid
-
-	# '''
-	# Name: setupNodes
-	# Parameters: obstacleList:spriteGroup
-	# Returns: None
-	# Purpose: This scans over the whole map to check if there are any collisions with obstacles.
-	# if it doesn't detect a collision in the given area then it will initialise a Node for pathfinding and store it in
-	# the self.nodes variable(It is a two dimensional list). It will then pass through every node in this 2D list to
-	# establish neighbours if there are any near it. Neighbours are added in a way that tries to ensure entities don't get
-	# stuck on corners.
-	# '''
-	# def setupNodes(self, obstacleList):
-	# 	colDetector = pygame.sprite.Sprite()#This is an object that is used to seeif anything is near where it is placed
-	# 	colDetector.rect = pygame.Rect(0, 0, 10, 10)
-	# 	for y in range(MAP_WIDTH * (SCREEN_SIZE[1] // TILE_SIZE)):#This calculates the amount of cells wide each tile is then multiplies it by the number of tiles
-	# 		for x in range(MAP_WIDTH * (SCREEN_SIZE[0] // TILE_SIZE)):
-	# 			colDetector.rect.center = (x * TILE_SIZE) + (TILE_SIZE // 2), (y * TILE_SIZE) + (TILE_SIZE // 2)
-	# 			collisions = pygame.sprite.spritecollide(colDetector, obstacleList, False)
-	# 			if not collisions:
-	# 				self.nodes[y][x] = Node((x * TILE_SIZE) + (TILE_SIZE // 2), (y * TILE_SIZE) + (TILE_SIZE // 2))
-	#
-	# 	#This assigns the neighbours to the nodes
-	# 	for y in range(MAP_WIDTH*(SCREEN_SIZE[1]//TILE_SIZE)):#This calculates the amount of cells wide each tile is then multiplies it by the number of tiles
-	# 		for x in range(MAP_WIDTH*(SCREEN_SIZE[0]//TILE_SIZE)):
-	# 			if self.nodes[y][x] != False:#If there is a node present
-	# 				if x != 0:#If not at a border
-	# 					if self.nodes[y][x - 1]:# if the node is not false
-	# 						self.nodes[y][x].left = self.nodes[y][x - 1]
-	# 						self.nodes[y][x].neighbours.append(self.nodes[y][x].left)
-	#
-	# 					if y != 0:
-	# 						if self.nodes[y][x-1] != False and self.nodes[y-1][x] != False:#This is in order to prevent clipping through corners
-	# 							if self.nodes[y - 1][x - 1]:
-	# 								self.nodes[y][x].topLeft = self.nodes[y - 1][x - 1]
-	# 								self.nodes[y][x].neighbours.append(self.nodes[y][x].topLeft)
-	#
-	# 					if y != MAP_WIDTH * (SCREEN_SIZE[0] // TILE_SIZE) - 1:
-	# 						if self.nodes[y][x-1] != False and self.nodes[y+1][x] != False:
-	# 							if self.nodes[y + 1][x - 1]:
-	# 								self.nodes[y][x].bottomLeft = self.nodes[y + 1][x - 1]
-	# 								self.nodes[y][x].neighbours.append(self.nodes[y][x].bottomLeft)
-	#
-	# 				if x != MAP_WIDTH*(SCREEN_SIZE[0]//TILE_SIZE) - 1:
-	# 					if self.nodes[y][x+1]:
-	# 						self.nodes[y][x].right = self.nodes[y][x+1]
-	# 						self.nodes[y][x].neighbours.append(self.nodes[y][x].right)
-	#
-	# 					if y != 0:
-	# 						if self.nodes[y][x+1] != False and self.nodes[y-1][x] != False:
-	# 							if self.nodes[y - 1][x + 1]:
-	# 								self.nodes[y][x].topRight = self.nodes[y - 1][x + 1]
-	# 								self.nodes[y][x].neighbours.append(self.nodes[y][x].topRight)
-	#
-	# 					if y != MAP_WIDTH * (SCREEN_SIZE[0] // TILE_SIZE) - 1:
-	# 						if self.nodes[y][x+1] != False and self.nodes[y+1][x] != False:
-	# 							if self.nodes[y +1][x + 1]:
-	# 								self.nodes[y][x].bottomRight = self.nodes[y +1][x + 1]
-	# 								self.nodes[y][x].neighbours.append(self.nodes[y][x].bottomRight)
-	#
-	# 				if y != 0:
-	# 					if self.nodes[y-1][x]:
-	# 						self.nodes[y][x].up = self.nodes[y-1][x]
-	# 						self.nodes[y][x].neighbours.append(self.nodes[y][x].up)
-	#
-	# 				if y != MAP_WIDTH * (SCREEN_SIZE[0] // TILE_SIZE) - 1:
-	# 					if self.nodes[y+1][x]:
-	# 						self.nodes[y][x].down = self.nodes[y+1][x]
-	# 						self.nodes[y][x].neighbours.append(self.nodes[y][x].down)
 
 	'''
 	Name: draw
@@ -290,13 +222,15 @@ class Camera:
 	Returns: None
 	Purpose: This readjusts any other players or enemies in the world.
 	'''
-	def worldAdjust(self, screen, world, characterList, enemyList):
+	def worldAdjust(self, screen, world, characterList, enemyList, npcList):
 		worldX = self.owner.rect.center[0]-self.owner.mapX
 		worldY = self.owner.rect.center[1]-self.owner.mapY
 		world.x, world.y = worldX, worldY
 		for character in characterList:
 			if character != self.owner:
 				character.rect.center = (worldX + character.mapX, worldY + character.mapY)
+		for npc in npcList:
+			npc.rect.center = (worldX + npc.mapX, worldY + npc.mapY)
 		for enemy in enemyList:
 			enemy.rect.center = (worldX + enemy.mapX, worldY + enemy.mapY)
 
@@ -326,7 +260,7 @@ class Camera:
 		for obstacle in obstacleList:
 			obstacle.rect.center = (worldX + obstacle.mapX, worldY + obstacle.mapY)
 
-
+npcList = pygame.sprite.Group()
 enemyList = pygame.sprite.Group()
 characters = pygame.sprite.Group()
 obstacleList = pygame.sprite.Group()
@@ -1003,7 +937,62 @@ class ServerEnemy:
 		if self.health <= 0:
 			self.health = 0
 
+class NPC(pygame.sprite.Sprite):
+	#class variables
+	idcount = 0
+	directions = {1:"left", 2:"up", 3:"right", 4:"down"}
+	def __init__(self, x, y, id=False):
+		super().__init__()
+		self.width = TILE_SIZE
+		self.height = TILE_SIZE
+		self.image = pygame.image.load("NPC.png")
+		self.image_orig = pygame.image.load("NPC.png")
+		self.image_orig = pygame.transform.scale(self.image_orig, (self.width, self.height))
+		self.image = pygame.transform.scale(self.image,(self.width,self.height))
+		self.rect = self.image.get_rect()
+		self.rect.center = -400, -400
+		self.mapX = x
+		self.mapY = y
+		if id:
+			self.id = id
+		else:
+			self.id = NPC.idcount
+		ServerEnemy.idcount += 1
+		self.activity = ["idol", pygame.time.get_ticks()]#[activity, time started]
 
+	def determineState(self):
+		if self.activity[0] != "talking":
+			# This swaps states
+			if pygame.time.get_ticks() - self.activity[1] >= 2000 and self.activity[0] == "idol":
+				direction = self.directions[random.randint(1, 4)]
+				self.activity = ["moving", pygame.time.get_ticks(), direction]
+			elif pygame.time.get_ticks() - self.activity[1] >= 1000 and self.activity[0] == "moving":
+				self.activity = ["idol", pygame.time.get_ticks()]
+
+			# Action
+			if self.activity[0] == "moving":
+				if self.activity[2] == "left":
+					self.mapX -= 2
+				elif self.activity[2] == "up":
+					self.mapY -= 2
+				elif self.activity[2] == "right":
+					self.mapX += 2
+				elif self.activity[2] == "down":
+					self.mapY += 2
+				return self.id, self.mapX, self.mapY
+			else:
+				return False
+
+'''
+Name: nodeSetup
+Parameters: obstacleList:spriteGroup, nodes:list
+Returns: None
+Purpose: This scans over the whole map to check if there are any collisions with obstacles.
+if it doesn't detect a collision in the given area then it will initialise a Node for pathfinding and store it in the
+nodes variable(It is a two dimensional list). It will then pass through every node in this 2D list to
+establish neighbours if there are any near it. Neighbours are added in a way that tries to ensure entities don't get
+stuck on corners.
+'''
 def nodeSetup(obstacleList, nodes):
 	sortedObstacles = []
 	for obstacle in obstacleList:

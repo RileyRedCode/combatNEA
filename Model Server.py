@@ -1,6 +1,6 @@
 import socket, threading, json, time, pygame
 from MapGen import MapGenerator, ServerObstacle
-from game_classes import nodeSetup, ServerEnemy, Bullet, TILE_SIZE, MAP_WIDTH, SCREEN_SIZE
+from game_classes import nodeSetup, ServerEnemy, NPC, Bullet, TILE_SIZE, MAP_WIDTH, SCREEN_SIZE
 
 HOST = '127.0.0.1'
 PORT = 50000
@@ -44,6 +44,17 @@ def gameLoop(players, serverEnemies, client_list, serverBullets):
                 bullet.mapX += bullet.direction[0]
                 bullet.mapY += bullet.direction[1]
 
+        # Determining the action for each NPC
+        npcActions = []
+        for npc in serverNPCs:
+            action = npc.determineState()
+            if action:
+                npcActions.append(action)
+        packet = {"command": "NPCACTIONS", "data": []}
+        for action in npcActions:
+            packet["data"].append({"id":action[0], "x":action[1], "y":action[2]})
+        send_to_client(client_list, packet)
+
         # Determining the action for each enemy
         enemyActions = []
         for enemy in serverEnemies:
@@ -63,9 +74,8 @@ def gameLoop(players, serverEnemies, client_list, serverBullets):
 
                 elif action[1] == "ENEMYDIE":
                     packet["data"].append({"id":action[0], "action": "DIE"})
-
-
         send_to_client(client_list, packet)
+
         clock.tick(60)
 
 #Player and connections
@@ -86,6 +96,13 @@ for obstacle in obstacles:
 serverNodes = [[False for count in range(MAP_WIDTH*(SCREEN_SIZE[1]//TILE_SIZE))] for i in range(MAP_WIDTH*(SCREEN_SIZE[0]//TILE_SIZE))]
 #this * unpacks the elements
 nodes = nodeSetup(serverObstacles, serverNodes)
+
+#NPCs
+serverNPCs = []
+npcs = []
+serverNPCs.append(NPC(1600, 1400))
+for npc in serverNPCs:
+    npcs.append([npc.mapX, npc.mapY, npc.id])
 
 #Enemies
 #Server enemies is a list of the actual objects whereas enemies just contains the data required to send to clients
@@ -128,6 +145,9 @@ while True:
     time.sleep(1)
     message = {"command":"ENEMIES", "data":enemies}
     conn.send((json.dumps(message)+"#").encode())
+    time.sleep(1)
+    message = {"command": "NPCS", "data": npcs}
+    conn.send((json.dumps(message) + "#").encode())
     time.sleep(1)
 
 

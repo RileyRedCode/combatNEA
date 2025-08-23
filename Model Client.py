@@ -1,6 +1,6 @@
 import pygame, random, socket, threading, json, math
-from game_classes import SCREEN_SIZE, TILE_SIZE, obstacleList, enemyList, bullets, characters, explosions, Wall, \
-    Character, Bullet, World, Enemy, nodeSetup
+from game_classes import SCREEN_SIZE, TILE_SIZE, obstacleList, npcList, enemyList, bullets, characters, explosions, Wall, \
+    Character, Bullet, World, Enemy, NPC, nodeSetup
 from game_classes import WHITE, BLACK
 
 
@@ -60,6 +60,10 @@ def recv_from_server(conn):
                 for ob in packet["data"]:
                     obstacles.append(ob)
 
+            if packet["command"] == "NPCS":
+                for i in packet["data"]:
+                    npcList.add(NPC(*i))
+
             if packet["command"] == "ENEMIES":
                 for i in packet["data"]:
                     enemyList.add(Enemy(*i))
@@ -75,6 +79,13 @@ def recv_from_server(conn):
                 for enemy in enemyList:
                     if enemy.id == packet["data"]["id"]:
                         enemy.takeDamage(packet["data"]["amount"])
+
+            if packet["command"] == "NPCACTIONS":
+                for command in packet["data"]:
+                    for npc in npcList:
+                        if npc.id == command["id"]:
+                            npc.mapX = command["x"]
+                            npc.mapY = command["y"]
 
             if packet["command"] == "ENEMYACTIONS":
                 for command in packet["data"]:
@@ -130,11 +141,6 @@ for row in MAP:
 
 running = wait_screen()
 
-# enemyList.add(Enemy(900, 900))
-# enemyList.add(Enemy(1000, 1100))
-# enemyList.add(Enemy(2000, 900))
-# enemyList.add(Enemy(900, 800))
-# enemyList.add(Enemy(900, 6000))
 
 world = World(textMap, obstacles)
 for obstacle in world.obstacleList:
@@ -183,7 +189,7 @@ while running == True:
     bullets.update(enemyList)
     explosions.update()
     player.move()
-    player.camera.worldAdjust(SCREEN, world, characters, enemyList)
+    player.camera.worldAdjust(SCREEN, world, characters, enemyList, npcList)
     player.camera.reAdjust()
     player.camera.bulletAdjust(bullets, explosions)
     player.camera.obstacleAdjust(obstacleList)
@@ -200,6 +206,7 @@ while running == True:
 
     world.draw(SCREEN)
     explosions.draw(SCREEN)
+    npcList.draw(SCREEN)
     enemyList.draw(SCREEN)
     characters.draw(SCREEN)
     obstacleList.draw(SCREEN)
