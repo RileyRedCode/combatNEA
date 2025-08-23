@@ -197,6 +197,9 @@ while running == True:
     player.checkTalk(npcList)
     if player.hud.animation:
         player.hud.animateTalk()
+    else:
+        if player.talking:
+            player.hud.disText()
     for enemy in enemyList:
         # If enough time has passed
         if pygame.time.get_ticks() - enemy.startTime >= 200 and enemy.startTime:

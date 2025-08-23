@@ -130,12 +130,22 @@ class Hud:
 
 		self.speaker = pygame.image.load("Assets/speaker.png")
 		self.speaker = pygame.transform.scale(self.speaker, (800, 800))
-		self.jitter = False
+		self.speakerRect = self.speaker.get_rect()
+		self.speakerRect.center = 860, 400
 
 		self.textbox = pygame.Surface((800, 250), pygame.SRCALPHA)
 		self.textbox.fill((0, 0, 0, 150))
 		self.textboxRect = self.textbox.get_rect()
 		self.textboxRect.bottomright = (0, 800)
+
+		self.jitter = False
+		self.letters = 0
+		self.font = pygame.font.SysFont('Times New Roman', 40)
+
+		self.message = "Issy check it out I did a thing!"
+		self.text = self.font.render((""), False, (255, 255, 255))
+		self.textRect = self.text.get_rect()
+
 
 	'''
 	Name: draw
@@ -153,7 +163,9 @@ class Hud:
 
 		if self.owner.talking:
 			screen.blit(self.talkBg, self.talkBgRect)
+			screen.blit(self.speaker, self.speakerRect)
 			screen.blit(self.textbox, self.textboxRect)
+			screen.blit(self.text, self.textRect)
 
 	def animateTalk(self):
 		increment = 0
@@ -173,7 +185,16 @@ class Hud:
 
 		if self.textboxRect.center[0] != 400:
 			self.textboxRect.x += 40
-		print(self.talkBgRect.center, self.jitter)
+
+		if self.speakerRect.center[0] != 500:
+			self.speakerRect.x -= 30
+
+	def disText(self):
+		if self.letters != len(self.message):
+			self.letters += 1
+			self.text = self.font.render(self.message[:self.letters], False, (255, 255, 255))
+			self.textRect = self.text.get_rect()
+			self.textRect.topleft = 10, 560
 
 	'''
 	Name: healthCalc
