@@ -126,9 +126,16 @@ class Hud:
 		#Talking
 		self.talkBg = pygame.image.load("Assets/talkBg.png")
 		self.talkBgRect = self.talkBg.get_rect()
-		self.talkBgRect.center = (400, 400)
+		self.talkBgRect.center = (900, 400)
+
 		self.speaker = pygame.image.load("Assets/speaker.png")
 		self.speaker = pygame.transform.scale(self.speaker, (800, 800))
+		self.jitter = False
+
+		self.textbox = pygame.Surface((800, 250), pygame.SRCALPHA)
+		self.textbox.fill((0, 0, 0, 150))
+		self.textboxRect = self.textbox.get_rect()
+		self.textboxRect.bottomright = (0, 800)
 
 	'''
 	Name: draw
@@ -146,6 +153,27 @@ class Hud:
 
 		if self.owner.talking:
 			screen.blit(self.talkBg, self.talkBgRect)
+			screen.blit(self.textbox, self.textboxRect)
+
+	def animateTalk(self):
+		increment = 0
+		if self.talkBgRect.center[0] > 500:
+			increment = 20
+		elif self.talkBgRect.center[0] > 440:
+			increment = 10
+		elif self.talkBgRect.center[0] <= 440 and not self.jitter:
+			increment = 10
+		elif self.talkBgRect.center[0] < 440 and self.jitter:
+			increment = -10
+		self.talkBgRect.x -= increment
+		if self.talkBgRect.center[0] <= 420:
+			self.jitter = True
+		if self.talkBgRect.center[0] == 440 and self.jitter:
+			self.animation = False
+
+		if self.textboxRect.center[0] != 400:
+			self.textboxRect.x += 40
+		print(self.talkBgRect.center, self.jitter)
 
 	'''
 	Name: healthCalc
@@ -641,6 +669,8 @@ class Character(pygame.sprite.Sprite):
 								  npc.mapX -(npc.width//2), npc.mapX +(npc.width//2), npc.mapY -(npc.height//2), npc.mapY +(npc.height//2)):
 					self.talking = True
 					confirm = True
+					self.hud.animation = True
+					self.hud.jitter = False
 					self.tell_server("talk", npc.id)
 				count += 1
 

@@ -176,7 +176,6 @@ count = 0
 player = characters.sprites()[0]
 spotting = False
 while running == True:
-    print(player.talking)
     SCREEN.fill(WHITE)
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
@@ -196,6 +195,8 @@ while running == True:
     player.camera.bulletAdjust(bullets, explosions)
     player.camera.obstacleAdjust(obstacleList)
     player.checkTalk(npcList)
+    if player.hud.animation:
+        player.hud.animateTalk()
     for enemy in enemyList:
         # If enough time has passed
         if pygame.time.get_ticks() - enemy.startTime >= 200 and enemy.startTime:
