@@ -142,7 +142,7 @@ class Hud:
 		self.letters = 0
 		self.font = pygame.font.SysFont('Times New Roman', 40)
 
-		self.message = "Issy check it out I did a thing!"
+		self.message = "MY NAME IS EDWIN, I MADE THE MIMIC "
 		self.text = self.font.render((""), False, (255, 255, 255))
 		self.textRect = self.text.get_rect()
 
@@ -447,23 +447,51 @@ class Explosion(pygame.sprite.Sprite):
 	applies the appropriate amount of damage. It then deletes the explosion if enough time has passed but otherwise just
 	lowers the alpha to make it look like it's fading away.
 	'''
-	def update(self):
-		collisions = pygame.sprite.spritecollide(self, characters, False)
-		if collisions != []:
-			for col in collisions:
-				distance = math.sqrt(((col.mapX - self.mapX)**2)+((col.mapY - self.mapY)**2))
-				#Close proximity damage
-				if distance - col.height < (self.height//2)//2:
-					col.takeDamage(40)
-				#Far proximity damage
-				elif distance - col.height < self.height//2:
-					col.takeDamage(10)
+	def update(self,players=False, serverSide = False):
+		if serverSide:
+			data = self.collisionCheck(players)
 
 		if pygame.time.get_ticks() - self.explosionTime > 250:
-			explosions.remove(self)
-			self.kill()
+			if serverSide:
+				return ("kill", data)
+			else:
+				explosions.remove(self)
+				self.kill()
 		else:
-			self.image.set_alpha(self.image.get_alpha()-19)
+			if not serverSide:
+				self.image.set_alpha(self.image.get_alpha()-19)
+			else:
+				return (False, data)
+
+	def collisionCheck(self, players):
+		victims = []
+		for p in players:
+			player = players[p]
+			if checkCollision(player.mapX-20, player.mapX+20, player.mapY-20, player.mapY+20,
+							  self.mapX-(self.width//2), self.mapX+(self.width//2), self.mapY-(self.height//2), self.mapY+(self.height//2)) and pygame.time.get_ticks() - player.invincible >800 or not player.invincible:
+				distance = math.sqrt(((player.mapX - self.mapX) ** 2) + ((player.mapY - self.mapY) ** 2))
+				# Close proximity damage
+				if distance - 20 < (self.height // 2) // 2:
+					victims.append({"id":player.connection, "damage":40})
+				# Far proximity damage
+				elif distance - 20 < self.height // 2:
+					victims.append({"id": player.connection, "damage": 10})
+
+		if victims != []:
+			return victims
+		else:
+			return False
+		# collisions = pygame.sprite.spritecollide(self, players, False)
+		# if collisions != []:
+		# 	for col in collisions:
+		# 		distance = math.sqrt(((col.mapX - self.mapX)**2)+((col.mapY - self.mapY)**2))
+		# 		#Close proximity damage
+		# 		if distance - col.height < (self.height//2)//2:
+		# 			col.takeDamage(40)
+		# 		#Far proximity damage
+		# 		elif distance - col.height < self.height//2:
+		# 			col.takeDamage(10)
+
 
 '''
 Name: Wall
@@ -514,7 +542,7 @@ class Character(pygame.sprite.Sprite):
 	Returns: None
 	Purpose: Constructor for player characters.
 	'''
-	def __init__(self,x,y,conn=None):
+	def __init__(self,x,y,conn=None, serverSide = False):
 		super().__init__()
 		self.width = TILE_SIZE
 		self.height = TILE_SIZE
@@ -528,8 +556,9 @@ class Character(pygame.sprite.Sprite):
 		self.mapY = y
 		self.direction = "UP"
 		self.connection = conn
-		self.camera = Camera(self)
-		self.hud = Hud(self)
+		if not serverSide:
+			self.camera = Camera(self)
+			self.hud = Hud(self)
 		self.health = 100
 		self.invincible = False
 		self.talking = False
@@ -673,12 +702,17 @@ class Character(pygame.sprite.Sprite):
 	Returns: None
 	Purpose: If enough time has passed since last damaged the enemy will take damage
 	'''
-	def takeDamage(self, damage):
-		if pygame.time.get_ticks() - self.invincible >800 or not self.invincible:
+	def takeDamage(self, damage, serverSide=False):
+		if serverSide:
+			if pygame.time.get_ticks() - self.invincible >800 or not self.invincible:
+				self.health -= damage
+				if self.health < 0:
+					self.health = 0
+				self.invincible = pygame.time.get_ticks()
+		else:
 			self.health -= damage
 			if self.health < 0:
 				self.health = 0
-			self.invincible = pygame.time.get_ticks()
 
 	def checkTalk(self, npcs):
 		if not self.talking:
@@ -924,7 +958,7 @@ class ServerEnemy:
 		target = False
 		if playerList:#If a player has been sighted
 			for player in playerList:#This finds the closest one
-				distance =  (self.mapX - playerList[player]["location"][0]), (self.mapY - playerList[player]["location"][1])
+				distance =  (self.mapX - playerList[player].mapX), (self.mapY - playerList[player].mapY)
 				hypotenuse = math.sqrt((distance[0]**2)+(distance[1]**2))
 				if not shortestDis or hypotenuse < shortestDis:
 					target = playerList[player]
@@ -932,11 +966,11 @@ class ServerEnemy:
 
 		#A* search
 		paths = priorityQueue()# structure of each entry - [Node name, path cost, combined heuristic (distance from Node + The path ), 	[Node paths]]
-		goalNode = serverNodes[target["location"][1]//TILE_SIZE][target["location"][0]//TILE_SIZE]
+		goalNode = serverNodes[target.mapY//TILE_SIZE][target.mapX//TILE_SIZE]
 		solution = False
 		X = int(self.mapX//TILE_SIZE)#Need the location of the enemy in reference to Nodes
 		Y = int(self.mapY//TILE_SIZE)
-		paths.enqueue([serverNodes[Y][X], 0, math.sqrt(((serverNodes[Y][X].mapX - target["location"][0])**2)+((serverNodes[Y][X].mapY - target["location"][1])**2)), []])#This is the start node
+		paths.enqueue([serverNodes[Y][X], 0, math.sqrt(((serverNodes[Y][X].mapX - target.mapX)**2)+((serverNodes[Y][X].mapY - target.mapY)**2)), []])#This is the start node
 		visited = []
 		while not solution:
 			current = paths.dequeue()
@@ -953,9 +987,9 @@ class ServerEnemy:
 						if neighbour == path[0]:
 							present = True
 							#This updates a path if a shorter route to the same node is found
-							if path[1] > current[1] + abs(math.sqrt(((neighbour.mapX - target["location"][0]) ** 2) + ((neighbour.mapY - target["location"][1]) ** 2))):
-								path[1] = current[1] + abs(math.sqrt(((neighbour.mapX - target["location"][0]) ** 2) + ((neighbour.mapY - target["location"][1]) ** 2)))
-								path[2] = abs(math.sqrt(((neighbour.mapX - current[0].mapX) ** 2) + ((neighbour.mapY - current[0].mapY) ** 2))) + abs(math.sqrt(((neighbour.mapX - target["location"][0]) ** 2) + ((neighbour.mapY - target["location"][1]) ** 2)))
+							if path[1] > current[1] + abs(math.sqrt(((neighbour.mapX - target.mapX) ** 2) + ((neighbour.mapY - target.mapY) ** 2))):
+								path[1] = current[1] + abs(math.sqrt(((neighbour.mapX - target.mapX) ** 2) + ((neighbour.mapY - target.mapY) ** 2)))
+								path[2] = abs(math.sqrt(((neighbour.mapX - current[0].mapX) ** 2) + ((neighbour.mapY - current[0].mapY) ** 2))) + abs(math.sqrt(((neighbour.mapX - target.mapX) ** 2) + ((neighbour.mapY - target.mapY) ** 2)))
 								pathNodes = current[3]
 								pathNodes.append(current[0])
 								path[3] = pathNodes
@@ -976,7 +1010,7 @@ class ServerEnemy:
 
 					else:
 						paths.enqueue([neighbour, abs(math.sqrt(((neighbour.mapX - current[0].mapX) ** 2)+((neighbour.mapY - current[0].mapY)**2))) + current[1],#this calculates the hypotenuse from one neighbour to another then adds the previous nodes path cost
-								  abs(math.sqrt(((neighbour.mapX - current[0].mapX) ** 2)+((neighbour.mapY - current[0].mapY)**2))) + abs(math.sqrt(((neighbour.mapX - target["location"][0])**2)+((neighbour.mapY - target["location"][1])**2))), pathNodes])
+								  abs(math.sqrt(((neighbour.mapX - current[0].mapX) ** 2)+((neighbour.mapY - current[0].mapY)**2))) + abs(math.sqrt(((neighbour.mapX - target.mapX)**2)+((neighbour.mapY - target.mapY)**2))), pathNodes])
 			if current[0] == goalNode:
 				solution = True
 

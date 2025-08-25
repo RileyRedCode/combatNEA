@@ -1,6 +1,6 @@
 import socket, threading, json, time, pygame
 from MapGen import MapGenerator, ServerObstacle
-from game_classes import nodeSetup, ServerEnemy, NPC, Bullet, TILE_SIZE, MAP_WIDTH, SCREEN_SIZE
+from game_classes import nodeSetup, ServerEnemy, NPC, Bullet, Explosion, TILE_SIZE, MAP_WIDTH, SCREEN_SIZE, Character
 
 HOST = '127.0.0.1'
 PORT = 50000
@@ -18,7 +18,7 @@ def recv_from_client(conn,client_list):
                     client.send((json.dumps(packet)+"#").encode())
                 else:
                     if packet["command"] == "MOVE":
-                        players[conn]["location"] = [packet["data"]["xPos"], packet["data"]["yPos"]]
+                        players[conn].mapX, players[conn].mapY = packet["data"]["xPos"], packet["data"]["yPos"]
                     if packet["command"] == "PROJECTILE":
                         serverBullets.add(Bullet(packet["data"]["xPos"], packet["data"]["yPos"], packet["data"]["coOrds"]))
                     if packet["command"] == "CONFIRMATION":
@@ -30,12 +30,18 @@ def recv_from_client(conn,client_list):
                             if npc.id == packet["data"]["id"]:
                                 npc.activity[0] = "talking"
 
-def send_to_client(client_list, packet):
-    for client in client_list:
-        client.send((json.dumps(packet) + "#").encode())
+def send_to_client(client_list, packet, identity=False):
+    if identity:
+        for client in client_list:
+            if client == identity:
+                client.send((json.dumps(packet) + "#").encode())
+    else:
+        for client in client_list:
+            client.send((json.dumps(packet) + "#").encode())
 
 def gameLoop(players, serverEnemies, client_list, serverBullets):
     while game:
+
         for bullet in serverBullets:#NOTE IDEA what if I grouped this into a list of enemies taking damage rather than individual messages
             result = bullet.collisionCheck(serverEnemies, True)
             if result[0]:#If the bullet has collided
@@ -50,6 +56,21 @@ def gameLoop(players, serverEnemies, client_list, serverBullets):
             else:
                 bullet.mapX += bullet.direction[0]
                 bullet.mapY += bullet.direction[1]
+
+        packet = {"command": "EXPLOSIONDAMAGE", "data": []}
+        for explosion in serverExplosions:
+            data = explosion.update(players, True)
+            if data[1]:
+                for i in data[1]:
+                    players[i["id"]].takeDamage(i["damage"], True)
+                    packet["data"] = i["damage"]
+                    print(packet)
+                    send_to_client(client_list, packet)
+
+            if data[0] == "kill":
+                serverExplosions.remove(explosion)
+                explosion.kill()
+
 
         # Determining the action for each NPC
         npcActions = []
@@ -68,6 +89,7 @@ def gameLoop(players, serverEnemies, client_list, serverBullets):
             path = enemy.locate(players, serverNodes)
             enemyActions.append(enemy.travel(path))
             if ((pygame.time.get_ticks() - enemy.startTime >= 200 and enemy.startTime) or (enemy.health <= 0 and enemy.confirm)):
+                serverExplosions.add(Explosion(enemy.mapX, enemy.mapY, enemy.mapX, enemy.mapY))
                 serverEnemies.remove(enemy)
 
         packet = {"command":"ENEMYACTIONS", "data":[]}
@@ -122,6 +144,7 @@ serverEnemies.append(ServerEnemy(3000, 4000))
 for enemy in serverEnemies:
     enemies.append([enemy.mapX, enemy.mapY, enemy.id])
 
+serverExplosions = pygame.sprite.Group()
 serverBullets = pygame.sprite.Group()
 
 
@@ -137,12 +160,12 @@ while True:
     if len(client_list) % 2 == 1:
         player_pos = player_positions[0]
         player2_pos = player_positions[1]
-        players[conn] = {"location":player_positions[0]}
+        players[conn] = Character(player_positions[0][0], player_positions[0][1], conn, True)
 
     else:
         player_pos = player_positions[1]
         player2_pos = player_positions[0]
-        players[conn] = {"identity": conn, "location": player_positions[1]}
+        players[conn] = Character(player_positions[1][0], player_positions[1][1], conn, True)#"identity": conn, "location": player_positions[1], "health": 100
 
     message = {"command":"SETUP", "data":{"PlayerX":player_pos[0], "PlayerY":player_pos[1], "EnemyX":player2_pos[0], "EnemyY":player2_pos[1]}}
     conn.send((json.dumps(message)+"#").encode())

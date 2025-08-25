@@ -80,6 +80,10 @@ def recv_from_server(conn):
                     if enemy.id == packet["data"]["id"]:
                         enemy.takeDamage(packet["data"]["amount"])
 
+            if packet["command"] == "EXPLOSIONDAMAGE":
+                print(packet["data"])
+                player.takeDamage(packet["data"])
+
             if packet["command"] == "NPCACTIONS":
                 for command in packet["data"]:
                     for npc in npcList:
