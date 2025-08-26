@@ -562,6 +562,7 @@ class Character(pygame.sprite.Sprite):
 		self.health = 100
 		self.invincible = False
 		self.talking = False
+		self.dead = False
 
 	'''
 	Name: fire
@@ -630,7 +631,7 @@ class Character(pygame.sprite.Sprite):
 	multiple directions it will lower the velocity. 
 	'''
 	def move(self):
-		if not self.talking:
+		if not self.talking and not self.dead:
 			keys = pygame.key.get_pressed()
 			velocity = 6
 			if keys[pygame.K_RIGHT] == True:#Account for diagonal speed
@@ -729,6 +730,19 @@ class Character(pygame.sprite.Sprite):
 					self.tell_server("talk", npc.id)
 				count += 1
 
+	def endTalk(self):
+		self.talking = False
+		#Line that initiates hud animation
+		#Line that frees the NPC
+
+	def die(self, serverSide=False):
+		self.dead = pygame.time.get_ticks()
+		if not serverSide:
+			self.image = pygame.image.load("Assets/ded.png")
+			self.image_orig = pygame.image.load(
+				"Assets/ded.png")  # This one is always upright which is useful for rotating with movement
+			self.image_orig = pygame.transform.scale(self.image_orig, (self.width, self.height))
+			self.image = pygame.transform.scale(self.image, (self.width, self.height))
 
 '''
 Name: priorityQueue
@@ -958,11 +972,12 @@ class ServerEnemy:
 		target = False
 		if playerList:#If a player has been sighted
 			for player in playerList:#This finds the closest one
-				distance =  (self.mapX - playerList[player].mapX), (self.mapY - playerList[player].mapY)
-				hypotenuse = math.sqrt((distance[0]**2)+(distance[1]**2))
-				if not shortestDis or hypotenuse < shortestDis:
-					target = playerList[player]
-					shortestDis = hypotenuse
+				if not playerList[player].dead:
+					distance =  (self.mapX - playerList[player].mapX), (self.mapY - playerList[player].mapY)
+					hypotenuse = math.sqrt((distance[0]**2)+(distance[1]**2))
+					if not shortestDis or hypotenuse < shortestDis:
+						target = playerList[player]
+						shortestDis = hypotenuse
 
 		#A* search
 		paths = priorityQueue()# structure of each entry - [Node name, path cost, combined heuristic (distance from Node + The path ), 	[Node paths]]

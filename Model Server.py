@@ -63,9 +63,12 @@ def gameLoop(players, serverEnemies, client_list, serverBullets):
             if data[1]:
                 for i in data[1]:
                     players[i["id"]].takeDamage(i["damage"], True)
+                    if players[i["id"]].health == 0:
+                        players[i["id"]].die(True)
+                        dpacket = {"command": "DIE"}
+                        send_to_client(client_list, dpacket, i["id"])
                     packet["data"] = i["damage"]
-                    print(packet)
-                    send_to_client(client_list, packet)
+                    send_to_client(client_list, packet, i["id"])
 
             if data[0] == "kill":
                 serverExplosions.remove(explosion)
@@ -139,6 +142,8 @@ serverEnemies = []
 enemies = []
 serverEnemies.append(ServerEnemy(3000, 3000))
 serverEnemies.append(ServerEnemy(3000, 4000))
+serverEnemies.append(ServerEnemy(4000, 4000))
+serverEnemies.append(ServerEnemy(6000, 4000))
 # serverEnemies.append(ServerEnemy(5000, 4000))
 # serverEnemies.append(ServerEnemy(3000, 5000))
 for enemy in serverEnemies:

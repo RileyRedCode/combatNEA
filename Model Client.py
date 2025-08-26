@@ -84,6 +84,9 @@ def recv_from_server(conn):
                 print(packet["data"])
                 player.takeDamage(packet["data"])
 
+            if packet["command"] == "DIE":
+                player.die()
+
             if packet["command"] == "NPCACTIONS":
                 for command in packet["data"]:
                     for npc in npcList:
@@ -187,7 +190,7 @@ while running == True:
         if event.type == pygame.KEYDOWN:
             keys = pygame.key.get_pressed()
         if event.type == pygame.MOUSEBUTTONUP:
-            if not pygame.mouse.get_pressed()[0] and event.button == 1 and not player.talking:
+            if not pygame.mouse.get_pressed()[0] and event.button == 1 and not player.talking and not player.dead:
                 coOrds = pygame.mouse.get_pos()
                 player.fire(coOrds)
 
