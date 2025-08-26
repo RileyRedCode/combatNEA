@@ -21,6 +21,8 @@ def recv_from_client(conn,client_list):
                         players[conn].mapX, players[conn].mapY = packet["data"]["xPos"], packet["data"]["yPos"]
                     if packet["command"] == "PROJECTILE":
                         serverBullets.add(Bullet(packet["data"]["xPos"], packet["data"]["yPos"], packet["data"]["coOrds"]))
+                    if packet["command"] == "DEATHCONFIRMATION":
+                        players[client].confirm = True
                     if packet["command"] == "CONFIRMATION":
                         for enemy in serverEnemies:
                             if enemy.id == packet["data"]["id"]:
@@ -29,6 +31,7 @@ def recv_from_client(conn,client_list):
                         for npc in serverNPCs:
                             if npc.id == packet["data"]["id"]:
                                 npc.activity[0] = "talking"
+                                npc.customers.append(client)
 
 def send_to_client(client_list, packet, identity=False):
     if identity:
@@ -41,6 +44,19 @@ def send_to_client(client_list, packet, identity=False):
 
 def gameLoop(players, serverEnemies, client_list, serverBullets):
     while game:
+        for player in players:
+            if players[player].dead and not players[player].confirm:#This will keep sending the death message until confirmation is received
+                dpacket = {"command": "DIE"}
+                send_to_client(client_list, dpacket, i["id"])
+
+            result = players[player].checkTalk(serverNPCs)
+            if result:
+                for npc in serverNPCs:
+                    if npc == result:
+                        npc.addCustomer(players[player].connection)
+                packet = {"command": "TALK", "data": {"id": result.id}}
+                send_to_client(client_list, packet, player)
+
 
         for bullet in serverBullets:#NOTE IDEA what if I grouped this into a list of enemies taking damage rather than individual messages
             result = bullet.collisionCheck(serverEnemies, True)
@@ -130,9 +146,9 @@ serverNodes = [[False for count in range(MAP_WIDTH*(SCREEN_SIZE[1]//TILE_SIZE))]
 nodes = nodeSetup(serverObstacles, serverNodes)
 
 #NPCs
-serverNPCs = []
+serverNPCs = pygame.sprite.Group()
 npcs = []
-serverNPCs.append(NPC(1600, 1400))
+serverNPCs.add(NPC(1600, 1400))
 for npc in serverNPCs:
     npcs.append([npc.mapX, npc.mapY, npc.id])
 

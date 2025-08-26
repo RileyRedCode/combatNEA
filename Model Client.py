@@ -64,6 +64,17 @@ def recv_from_server(conn):
                 for i in packet["data"]:
                     npcList.add(NPC(*i))
 
+            if packet["command"] == "TALK":
+                for npc in npcList:
+                    if npc.id == packet["data"]["id"]:
+                        player.talking = npc
+                player.hud.startAnimation("open")
+
+                for npc in npcList:
+                    if npc.id == packet["data"]["id"]:
+                        npc.addCustomer(player)
+
+
             if packet["command"] == "ENEMIES":
                 for i in packet["data"]:
                     enemyList.add(Enemy(*i))
@@ -81,7 +92,6 @@ def recv_from_server(conn):
                         enemy.takeDamage(packet["data"]["amount"])
 
             if packet["command"] == "EXPLOSIONDAMAGE":
-                print(packet["data"])
                 player.takeDamage(packet["data"])
 
             if packet["command"] == "DIE":
@@ -201,9 +211,12 @@ while running == True:
     player.camera.reAdjust()
     player.camera.bulletAdjust(bullets, explosions)
     player.camera.obstacleAdjust(obstacleList)
-    player.checkTalk(npcList)
+    # player.checkTalk(npcList)
     if player.hud.animation:
-        player.hud.animateTalk()
+        if player.hud.animation == "open":
+            player.hud.animateTalk()
+        elif player.hud.animation == "close":
+            player.hud.animateExit()
     else:
         if player.talking:
             player.hud.disText()

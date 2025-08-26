@@ -142,7 +142,7 @@ class Hud:
 		self.letters = 0
 		self.font = pygame.font.SysFont('Times New Roman', 40)
 
-		self.message = "MY NAME IS EDWIN, I MADE THE MIMIC "
+		self.message = "My name is EDWIN, I made the mimic."
 		self.text = self.font.render((""), False, (255, 255, 255))
 		self.textRect = self.text.get_rect()
 
@@ -165,7 +165,15 @@ class Hud:
 			screen.blit(self.talkBg, self.talkBgRect)
 			screen.blit(self.speaker, self.speakerRect)
 			screen.blit(self.textbox, self.textboxRect)
-			screen.blit(self.text, self.textRect)
+			if not self.animation:
+				screen.blit(self.text, self.textRect)
+
+	def startAnimation(self, type):
+		if type == "open":
+			self.jitter = False
+			self.animation = "open"
+		elif type == "close":
+			self.animation = "close"
 
 	def animateTalk(self):
 		increment = 0
@@ -188,6 +196,16 @@ class Hud:
 
 		if self.speakerRect.center[0] != 500:
 			self.speakerRect.x -= 30
+
+	def animateExit(self):
+		increment = 0
+		if self.talkBgRect.center[0] < 650:
+			increment = 20
+		else:
+			increment = 40
+			self.speakerRect.x += 30
+		self.textboxRect.x -= increment
+		self.talkBgRect.x += increment
 
 	def disText(self):
 		if self.letters != len(self.message):
@@ -563,6 +581,7 @@ class Character(pygame.sprite.Sprite):
 		self.invincible = False
 		self.talking = False
 		self.dead = False
+		self.confirm = False
 
 	'''
 	Name: fire
@@ -618,6 +637,8 @@ class Character(pygame.sprite.Sprite):
 				packet = {"command": "PROJECTILE", "data": {"xPos": self.mapX, "yPos":self.mapY, "coOrds":data}}
 			elif action == "kill":
 				packet = {"command": "CONFIRMATION", "data": {"id": data}}
+			elif action == "death":
+				packet = {"command": "DEATHCONFIRMATION"}
 			elif action == "talk":
 				packet = {"command": "TALK", "data": {"id": data}}
 			self.connection.send((json.dumps(packet) + "#").encode())
@@ -716,33 +737,39 @@ class Character(pygame.sprite.Sprite):
 				self.health = 0
 
 	def checkTalk(self, npcs):
-		if not self.talking:
+		if not self.talking and not self.dead:
 			count = 0
-			confirm = False
-			while not confirm and count != len(pygame.sprite.Group.sprites(npcs)):
+			while count != len(pygame.sprite.Group.sprites(npcs)):
 				npc = pygame.sprite.Group.sprites(npcs)[count]
 				if checkCollision(self.mapX -(self.width//2), self.mapX +(self.width//2), self.mapY -(self.height//2), self.mapY +(self.height//2),
 								  npc.mapX -(npc.width//2), npc.mapX +(npc.width//2), npc.mapY -(npc.height//2), npc.mapY +(npc.height//2)):
-					self.talking = True
-					confirm = True
-					self.hud.animation = True
-					self.hud.jitter = False
-					self.tell_server("talk", npc.id)
+					self.talking = npc
+					return npc
 				count += 1
 
-	def endTalk(self):
+		return False
+
+	def endTalk(self, serverSide=False):
+		if serverSide:
+			self.talking.removeCustomer(self.connection)
+		else:
+			self.hud.startAnimation("close")
 		self.talking = False
-		#Line that initiates hud animation
-		#Line that frees the NPC
+
 
 	def die(self, serverSide=False):
+		print("DIED")
 		self.dead = pygame.time.get_ticks()
 		if not serverSide:
+			self.health = 0
+			self.tell_server("death")
 			self.image = pygame.image.load("Assets/ded.png")
 			self.image_orig = pygame.image.load(
 				"Assets/ded.png")  # This one is always upright which is useful for rotating with movement
 			self.image_orig = pygame.transform.scale(self.image_orig, (self.width, self.height))
 			self.image = pygame.transform.scale(self.image, (self.width, self.height))
+		if self.talking:
+			self.endTalk(serverSide)
 
 '''
 Name: priorityQueue
@@ -1085,8 +1112,9 @@ class NPC(pygame.sprite.Sprite):
 			self.id = id
 		else:
 			self.id = NPC.idcount
-		ServerEnemy.idcount += 1
+		NPC.idcount += 1
 		self.activity = ["idol", pygame.time.get_ticks()]#[activity, time started]
+		self.customers = []
 
 	def determineState(self):
 		if self.activity[0] != "talking":
@@ -1110,6 +1138,17 @@ class NPC(pygame.sprite.Sprite):
 				return self.id, self.mapX, self.mapY
 
 		return False
+
+	def addCustomer(self, customer):
+		self.customers.append(customer)
+		if self.activity[0] != "talking":
+			self.activity[0] = "talking"
+
+	def removeCustomer(self, customer):
+		self.customers.remove(customer)
+		if len(self.customers) == 0:
+			self.activity[0] = "idol"
+
 
 '''
 Name: nodeSetup
