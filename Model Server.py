@@ -79,10 +79,10 @@ def gameLoop(players, serverEnemies, client_list, serverBullets):
             if data[1]:
                 for i in data[1]:
                     players[i["id"]].takeDamage(i["damage"], True)
-                    if players[i["id"]].health == 0:
+                    if players[i["id"]].health == 0 and not  players[i["id"]].dead:
                         players[i["id"]].die(True)
-                        dpacket = {"command": "DIE"}
-                        send_to_client(client_list, dpacket, i["id"])
+                        dpacket = {"command": "DIE", "data":players[i["id"]].id}
+                        send_to_client(client_list, dpacket)
                     packet["data"] = i["damage"]
                     send_to_client(client_list, packet, i["id"])
 
@@ -188,7 +188,7 @@ while True:
         player2_pos = player_positions[0]
         players[conn] = Character(player_positions[1][0], player_positions[1][1], conn, True)#"identity": conn, "location": player_positions[1], "health": 100
 
-    message = {"command":"SETUP", "data":{"PlayerX":player_pos[0], "PlayerY":player_pos[1], "EnemyX":player2_pos[0], "EnemyY":player2_pos[1]}}
+    message = {"command":"SETUP", "data":{"PlayerX":player_pos[0], "PlayerY":player_pos[1], "EnemyX":player2_pos[0], "EnemyY":player2_pos[1], "id":players[conn].id}}
     conn.send((json.dumps(message)+"#").encode())
     time.sleep(1)
     message = {"command":"OBSTACLES", "data":obstacles}

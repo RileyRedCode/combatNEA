@@ -48,9 +48,13 @@ def recv_from_server(conn):
                 Waiting = False
 
             if packet["command"] == "SETUP":
-                c = Character(int(packet["data"]["PlayerX"]), int(packet["data"]["PlayerY"]), conn)
+                c = Character(int(packet["data"]["PlayerX"]), int(packet["data"]["PlayerY"]), conn, False, packet["data"]["id"])
                 characters.add(c)
-                playerTwo = Character(int(packet["data"]["EnemyX"]), int(packet["data"]["EnemyY"]))
+                if packet["data"]["id"] == 1:
+                    otherId = 0
+                else:
+                    otherId = 1
+                playerTwo = Character(int(packet["data"]["EnemyX"]), int(packet["data"]["EnemyY"]), None, False, otherId)
                 characters.add(playerTwo)
 
             if packet["command"] == "MAP":
@@ -95,7 +99,13 @@ def recv_from_server(conn):
                 player.takeDamage(packet["data"])
 
             if packet["command"] == "DIE":
-                player.die()
+                if player.id == packet["data"]:
+                    player.die()
+                else:
+                    for p in characters:
+                        if p.id == packet["data"]:
+                            p.deadSprite()
+                            p.dead = True
 
             if packet["command"] == "NPCACTIONS":
                 for command in packet["data"]:
@@ -211,7 +221,7 @@ while running == True:
     player.camera.reAdjust()
     player.camera.bulletAdjust(bullets, explosions)
     player.camera.obstacleAdjust(obstacleList)
-    # player.checkTalk(npcList)
+    player.checkRevive(characters)
     if player.hud.animation:
         if player.hud.animation == "open":
             player.hud.animateTalk()

@@ -108,7 +108,7 @@ class Hud:
 		self.displayHealth = 100
 		self.displayDamage = 0
 		# dimensions are 110 by 30
-		self.healthbar = pygame.image.load("healthbar.png")
+		self.healthbar = pygame.image.load("Assets/healthbar.png")
 		self.healthbar = pygame.transform.scale(self.healthbar,(220, 60))
 
 		#colours
@@ -122,6 +122,11 @@ class Hud:
 		self.damage.fill(self.white)
 		self.background = pygame.surface.Surface((self.displayHealth*2, 40))
 		self.background.fill(self.healthBgColour)
+
+		self.revive = pygame.image.load("Assets/revive.png")
+		self.revive = pygame.transform.scale(self.revive, (60, 60))
+		self.reviveRect = self.revive.get_rect()
+		self.reviveRect.center = (400, 650)
 
 		#Talking
 		self.talkBg = pygame.image.load("Assets/talkBg.png")
@@ -168,6 +173,9 @@ class Hud:
 			if not self.animation:
 				screen.blit(self.text, self.textRect)
 
+		if self.owner.revive:
+			screen.blit(self.revive, self.reviveRect)
+
 	def startAnimation(self, type):
 		if type == "open":
 			self.jitter = False
@@ -206,6 +214,8 @@ class Hud:
 			self.speakerRect.x += 30
 		self.textboxRect.x -= increment
 		self.talkBgRect.x += increment
+		if self.speakerRect.x > 800:
+			self.owner.talking = False
 
 	def disText(self):
 		if self.letters != len(self.message):
@@ -553,6 +563,7 @@ Name: Character
 Purpose: This is what the player controls. This class is also used for any other players that are playing online.
 '''
 class Character(pygame.sprite.Sprite):
+	idcount = 0
 
 	'''
 	Name: __init__
@@ -560,12 +571,12 @@ class Character(pygame.sprite.Sprite):
 	Returns: None
 	Purpose: Constructor for player characters.
 	'''
-	def __init__(self,x,y,conn=None, serverSide = False):
+	def __init__(self,x,y,conn=None, serverSide = False, id = False):
 		super().__init__()
 		self.width = TILE_SIZE
 		self.height = TILE_SIZE
-		self.image = pygame.image.load("rocket.png")
-		self.image_orig = pygame.image.load("rocket.png")#This one is always upright which is useful for rotating with movement
+		self.image = pygame.image.load("Assets/rocket.png")
+		self.image_orig = pygame.image.load("Assets/rocket.png")#This one is always upright which is useful for rotating with movement
 		self.image_orig = pygame.transform.scale(self.image_orig, (self.width, self.height))
 		self.image = pygame.transform.scale(self.image,(self.width,self.height))
 		self.rect = self.image.get_rect()
@@ -577,11 +588,17 @@ class Character(pygame.sprite.Sprite):
 		if not serverSide:
 			self.camera = Camera(self)
 			self.hud = Hud(self)
+		if serverSide:
+			self.id = Character.idcount
+			Character.idcount += 1
+		else:
+			self.id = id
 		self.health = 100
 		self.invincible = False
 		self.talking = False
 		self.dead = False
 		self.confirm = False
+		self.revive = False
 
 	'''
 	Name: fire
@@ -655,17 +672,17 @@ class Character(pygame.sprite.Sprite):
 		if not self.talking and not self.dead:
 			keys = pygame.key.get_pressed()
 			velocity = 6
-			if keys[pygame.K_RIGHT] == True:#Account for diagonal speed
-				if keys[pygame.K_UP] == True or keys[pygame.K_DOWN] == True:
+			if keys[pygame.K_d] == True:#Account for diagonal speed
+				if keys[pygame.K_w] == True or keys[pygame.K_s] == True:
 					velocity = math.floor(velocity *0.7)
 
 
-			elif keys[pygame.K_LEFT] == True:
-				if keys[pygame.K_UP] == True or keys[pygame.K_DOWN] == True:
+			elif keys[pygame.K_a] == True:
+				if keys[pygame.K_w] == True or keys[pygame.K_s] == True:
 					velocity =  math.floor(velocity *0.7)
 
 
-			if keys[pygame.K_UP] == True:
+			if keys[pygame.K_w] == True:
 				self.rect.y -= velocity
 				#self.mapY -= velocity
 				self.direction = "UP"
@@ -679,7 +696,7 @@ class Character(pygame.sprite.Sprite):
 				# if frame
 				self.tell_server("move")
 
-			if keys[pygame.K_DOWN]:
+			if keys[pygame.K_s]:
 				self.rect.y += velocity
 				#self.mapY += velocity
 				self.direction = "DOWN"
@@ -692,7 +709,7 @@ class Character(pygame.sprite.Sprite):
 					#self.mapY = SCREEN_SIZE[1]-self.height
 				self.tell_server("move")
 
-			if keys[pygame.K_LEFT]:
+			if keys[pygame.K_a]:
 				self.rect.x -= velocity
 				# self.mapX -= math.floor(velocity)
 				self.direction = "LEFT"
@@ -705,7 +722,7 @@ class Character(pygame.sprite.Sprite):
 					# self.mapX = 0
 				self.tell_server("move")
 
-			if keys[pygame.K_RIGHT]:
+			if keys[pygame.K_d]:
 				self.rect.x += velocity
 				# self.mapX += velocity
 				self.direction = "RIGHT"
@@ -752,24 +769,39 @@ class Character(pygame.sprite.Sprite):
 	def endTalk(self, serverSide=False):
 		if serverSide:
 			self.talking.removeCustomer(self.connection)
+			self.talking = False
 		else:
 			self.hud.startAnimation("close")
-		self.talking = False
 
 
 	def die(self, serverSide=False):
-		print("DIED")
 		self.dead = pygame.time.get_ticks()
 		if not serverSide:
 			self.health = 0
 			self.tell_server("death")
-			self.image = pygame.image.load("Assets/ded.png")
-			self.image_orig = pygame.image.load(
-				"Assets/ded.png")  # This one is always upright which is useful for rotating with movement
-			self.image_orig = pygame.transform.scale(self.image_orig, (self.width, self.height))
-			self.image = pygame.transform.scale(self.image, (self.width, self.height))
+			self.deadSprite()
 		if self.talking:
 			self.endTalk(serverSide)
+
+	def deadSprite(self):
+		self.image = pygame.image.load("Assets/ded.png")
+		self.image_orig = pygame.image.load(
+			"Assets/ded.png")  # This one is always upright which is useful for rotating with movement
+		self.image_orig = pygame.transform.scale(self.image_orig, (self.width, self.height))
+		self.image = pygame.transform.scale(self.image, (self.width, self.height))
+
+	def checkRevive(self, players):
+		self.checked = False
+		for player in players:
+			if player != self and player.dead and not self.talking and not self.dead:
+				distance = math.sqrt(((player.mapX - self.mapX) ** 2) + ((player.mapY - self.mapY) ** 2))
+				if distance < 70:
+					self.revive = True
+					self.checked = True
+
+		if not self.checked:
+			self.revive = False
+
 
 '''
 Name: priorityQueue
@@ -853,8 +885,8 @@ class Enemy(pygame.sprite.Sprite):
 		super().__init__()
 		self.width = TILE_SIZE
 		self.height = TILE_SIZE
-		self.image = pygame.image.load("evilBear.png")
-		self.image_orig = pygame.image.load("evilBear.png")
+		self.image = pygame.image.load("Assets/evilBear.png")
+		self.image_orig = pygame.image.load("Assets/evilBear.png")
 		self.image_orig = pygame.transform.scale(self.image_orig, (self.width, self.height))
 		self.image = pygame.transform.scale(self.image,(self.width,self.height))
 		self.rect = self.image.get_rect()
@@ -1100,8 +1132,8 @@ class NPC(pygame.sprite.Sprite):
 		super().__init__()
 		self.width = TILE_SIZE
 		self.height = TILE_SIZE
-		self.image = pygame.image.load("NPC.png")
-		self.image_orig = pygame.image.load("NPC.png")
+		self.image = pygame.image.load("Assets/NPC.png")
+		self.image_orig = pygame.image.load("Assets/NPC.png")
 		self.image_orig = pygame.transform.scale(self.image_orig, (self.width, self.height))
 		self.image = pygame.transform.scale(self.image,(self.width,self.height))
 		self.rect = self.image.get_rect()
