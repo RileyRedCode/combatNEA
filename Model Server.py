@@ -19,19 +19,28 @@ def recv_from_client(conn,client_list):
                 else:
                     if packet["command"] == "MOVE":
                         players[conn].mapX, players[conn].mapY = packet["data"]["xPos"], packet["data"]["yPos"]
+
                     if packet["command"] == "PROJECTILE":
                         serverBullets.add(Bullet(packet["data"]["xPos"], packet["data"]["yPos"], packet["data"]["coOrds"]))
+
                     if packet["command"] == "DEATHCONFIRMATION":
                         players[client].confirm = True
+
                     if packet["command"] == "CONFIRMATION":
                         for enemy in serverEnemies:
                             if enemy.id == packet["data"]["id"]:
                                 enemy.confirm = True
+
                     if packet["command"] == "TALK":
                         for npc in serverNPCs:
                             if npc.id == packet["data"]["id"]:
                                 npc.activity[0] = "talking"
                                 npc.customers.append(client)
+
+                    if packet["command"] == "REVIVAL":
+                        for p in players:
+                            if players[p].id in packet["data"]["idList"]:
+                                players[p].reviveSelf()
 
 def send_to_client(client_list, packet, identity=False):
     if identity:
@@ -46,8 +55,8 @@ def gameLoop(players, serverEnemies, client_list, serverBullets):
     while game:
         for player in players:
             if players[player].dead and not players[player].confirm:#This will keep sending the death message until confirmation is received
-                dpacket = {"command": "DIE"}
-                send_to_client(client_list, dpacket, i["id"])
+                dpacket = {"command": "DIE", "data":players[player].id}
+                send_to_client(client_list, dpacket)
 
             result = players[player].checkTalk(serverNPCs)
             if result:

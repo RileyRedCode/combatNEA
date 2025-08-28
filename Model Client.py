@@ -107,6 +107,11 @@ def recv_from_server(conn):
                             p.deadSprite()
                             p.dead = True
 
+            if packet["command"] == "REVIVAL":
+                for p in characters:
+                    if p.id in packet["data"]["idList"]:
+                        p.reviveSelf()
+
             if packet["command"] == "NPCACTIONS":
                 for command in packet["data"]:
                     for npc in npcList:

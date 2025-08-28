@@ -658,6 +658,8 @@ class Character(pygame.sprite.Sprite):
 				packet = {"command": "DEATHCONFIRMATION"}
 			elif action == "talk":
 				packet = {"command": "TALK", "data": {"id": data}}
+			elif action == "revive":
+				packet = {"command": "REVIVAL", "data": {"idList": data}}
 			self.connection.send((json.dumps(packet) + "#").encode())
 
 
@@ -791,16 +793,35 @@ class Character(pygame.sprite.Sprite):
 		self.image = pygame.transform.scale(self.image, (self.width, self.height))
 
 	def checkRevive(self, players):
-		self.checked = False
+		checked = False
+		reviveList = []
 		for player in players:
 			if player != self and player.dead and not self.talking and not self.dead:
 				distance = math.sqrt(((player.mapX - self.mapX) ** 2) + ((player.mapY - self.mapY) ** 2))
 				if distance < 70:
 					self.revive = True
-					self.checked = True
+					checked = True
+					reviveList.append(player.id)
 
-		if not self.checked:
+		if not checked:
 			self.revive = False
+		else:
+			keys = pygame.key.get_pressed()
+			if keys[pygame.K_r]:
+				self.tell_server("revive", reviveList)
+				for player in players:
+					if player.id in reviveList:
+						player.reviveSelf()
+
+	def reviveSelf(self):
+		print("REVIVING BITCH")
+		self.health = 50
+		self.dead = False
+		self.image = pygame.image.load("Assets/rocket.png")
+		self.image_orig = pygame.image.load(
+			"Assets/rocket.png")  # This one is always upright which is useful for rotating with movement
+		self.image_orig = pygame.transform.scale(self.image_orig, (self.width, self.height))
+		self.image = pygame.transform.scale(self.image, (self.width, self.height))
 
 
 '''
