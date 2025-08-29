@@ -26,6 +26,9 @@ def recv_from_client(conn,client_list):
                     if packet["command"] == "DEATHCONFIRMATION":
                         players[client].confirm = True
 
+                    if packet["command"] == "REVCONFIRMATION":
+                        players[client].confirm = False
+
                     if packet["command"] == "CONFIRMATION":
                         for enemy in serverEnemies:
                             if enemy.id == packet["data"]["id"]:
@@ -54,8 +57,13 @@ def send_to_client(client_list, packet, identity=False):
 def gameLoop(players, serverEnemies, client_list, serverBullets):
     while game:
         for player in players:
+            if players[player].id == 1:
+                print("Dead:", players[player].dead, "\tConfirm:", players[player].confirm)
             if players[player].dead and not players[player].confirm:#This will keep sending the death message until confirmation is received
                 dpacket = {"command": "DIE", "data":players[player].id}
+                send_to_client(client_list, dpacket)
+            elif not players[player].dead and players[player].confirm:
+                dpacket = {"command": "REVIVAL", "data": {"idList": [players[player].id]}}
                 send_to_client(client_list, dpacket)
 
             result = players[player].checkTalk(serverNPCs)

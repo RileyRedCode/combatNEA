@@ -107,6 +107,7 @@ class Hud:
 		#Health bar section
 		self.displayHealth = 100
 		self.displayDamage = 0
+		self.displayHeal = 0
 		# dimensions are 110 by 30
 		self.healthbar = pygame.image.load("Assets/healthbar.png")
 		self.healthbar = pygame.transform.scale(self.healthbar,(220, 60))
@@ -115,11 +116,14 @@ class Hud:
 		self.healthBgColour = (25, 25, 25)
 		self.white = (255, 255, 255)
 		self.healthColour = (255, 120, 90)
+		self.green = (0, 200, 30)
 
 		self.health = pygame.surface.Surface((self.displayHealth, 40))
 		self.health.fill(self.healthColour)
 		self.damage = pygame.surface.Surface((self.displayHealth, 40))
 		self.damage.fill(self.white)
+		self.heal = pygame.surface.Surface((1, 40))
+		self.heal.fill(self.green)
 		self.background = pygame.surface.Surface((self.displayHealth*2, 40))
 		self.background.fill(self.healthBgColour)
 
@@ -163,6 +167,7 @@ class Hud:
 
 		screen.blit(self.background, (TILE_SIZE // 4 + 10, TILE_SIZE // 4 + 10))
 		screen.blit(self.damage,((TILE_SIZE//4) + 10 + (self.displayHealth * 2) - 1, TILE_SIZE//4 + 10))
+		screen.blit(self.heal, ((TILE_SIZE // 4) + 10 + (self.displayHealth * 2) - 1, TILE_SIZE // 4 + 10))
 		screen.blit(self.health,(TILE_SIZE//4 + 10 - 1, TILE_SIZE//4 + 10))
 		screen.blit(self.healthbar, (TILE_SIZE//4, TILE_SIZE//4))
 
@@ -232,28 +237,35 @@ class Hud:
 	damage bars length will slowly decrease). 
 	'''
 	def healthCalc(self, playerHealth):
+		print(playerHealth, self.displayHealth)
 		if self.displayHealth != playerHealth:
 			#If health has been lost
 			if playerHealth < self.displayHealth:
-				#This ensures that damage does not begin increasing
-				if self.displayHealth > 0:
-					self.displayDamage += self.displayHealth - playerHealth
+				self.displayDamage += self.displayHealth - playerHealth
 
 				self.displayHealth = playerHealth
 				#This prevents issues when drawing the bar MAYBE SHOULD SHIFT TAB BY ONE?
 				if self.displayHealth < 0:
 					self.displayHealth = 0
+			#Health is gained
+			else:
+				self.displayHealth += 1
+				self.displayHeal = playerHealth - self.displayHealth
+
+		elif self.displayHeal > 0:
+			self.displayHeal = 0
+
 
 		#This decreases by one over time so that the damage bar slowly disappears
-		self.displayDamage -= 1
-		if self.displayDamage < 0:
-			self.displayDamage = 0
-
-		elif self.displayHealth+ self.displayDamage > 100:
-			self.displayDamage = 100- self.displayHealth
+		if self.displayDamage > 0:
+			self.displayDamage -= 1
+			#This prevents the damage bar from exceeding the space
+			if self.displayHealth + self.displayDamage > 100:
+				self.displayDamage = 100- self.displayHealth
 
 		self.health = pygame.transform.scale(self.health, ((self.displayHealth * 2) + 1, 40))
 		self.damage = pygame.transform.scale(self.damage, ((self.displayDamage * 2) + 1, 40))
+		self.heal = pygame.transform.scale(self.heal, ((self.displayHeal * 2) + 1, 40))
 
 '''
 Name: Camera
@@ -500,7 +512,7 @@ class Explosion(pygame.sprite.Sprite):
 				distance = math.sqrt(((player.mapX - self.mapX) ** 2) + ((player.mapY - self.mapY) ** 2))
 				# Close proximity damage
 				if distance - 20 < (self.height // 2) // 2:
-					victims.append({"id":player.connection, "damage":40})
+					victims.append({"id":player.connection, "damage":140})
 				# Far proximity damage
 				elif distance - 20 < self.height // 2:
 					victims.append({"id": player.connection, "damage": 10})
@@ -575,10 +587,11 @@ class Character(pygame.sprite.Sprite):
 		super().__init__()
 		self.width = TILE_SIZE
 		self.height = TILE_SIZE
-		self.image = pygame.image.load("Assets/rocket.png")
-		self.image_orig = pygame.image.load("Assets/rocket.png")#This one is always upright which is useful for rotating with movement
-		self.image_orig = pygame.transform.scale(self.image_orig, (self.width, self.height))
-		self.image = pygame.transform.scale(self.image,(self.width,self.height))
+		self.deadImage = pygame.image.load("Assets/ded.png")
+		self.deadImage = pygame.transform.scale(self.deadImage, (self.width, self.height))
+		self.aliveImage = pygame.image.load("Assets/rocket.png")
+		self.aliveImage = pygame.transform.scale(self.aliveImage,(self.width,self.height))
+		self.image = self.aliveImage
 		self.rect = self.image.get_rect()
 		self.rect.center = ((SCREEN_SIZE[0]//2)-1, (SCREEN_SIZE[1]//2)-1)
 		self.mapX = x
@@ -622,22 +635,22 @@ class Character(pygame.sprite.Sprite):
 		b = Bullet(self.mapX, self.mapY, sides)
 		bullets.add(b)
 
-	'''
-	Name: rotate
-	Parameters: None
-	Returns: None
-	Purpose: This rotates the players image depending on the direction they have last travelled in.
-	'''
-	def rotate(self):
-		angle = 0
-		if self.direction == "DOWN":
-			angle = 180
-		elif self.direction == "LEFT":
-			angle = 90
-		elif self.direction == "RIGHT":
-			angle = 270
-
-		self.image = pygame.transform.rotate(self.image_orig,angle)
+	# '''
+	# Name: rotate
+	# Parameters: None
+	# Returns: None
+	# Purpose: This rotates the players image depending on the direction they have last travelled in.
+	# '''
+	# def rotate(self):
+	# 	angle = 0
+	# 	if self.direction == "DOWN":
+	# 		angle = 180
+	# 	elif self.direction == "LEFT":
+	# 		angle = 90
+	# 	elif self.direction == "RIGHT":
+	# 		angle = 270
+	#
+	# 	self.image = pygame.transform.rotate(self.image_orig,angle)
 
 	'''
 	Name: tell_server
@@ -656,6 +669,8 @@ class Character(pygame.sprite.Sprite):
 				packet = {"command": "CONFIRMATION", "data": {"id": data}}
 			elif action == "death":
 				packet = {"command": "DEATHCONFIRMATION"}
+			elif action == "revived":
+				packet = {"command": "REVCONFIRMATION"}
 			elif action == "talk":
 				packet = {"command": "TALK", "data": {"id": data}}
 			elif action == "revive":
@@ -688,7 +703,6 @@ class Character(pygame.sprite.Sprite):
 				self.rect.y -= velocity
 				#self.mapY -= velocity
 				self.direction = "UP"
-				self.rotate()
 				if pygame.sprite.spritecollide(self, obstacleList, False):
 					self.rect.y += velocity
 					#self.mapY += velocity
@@ -702,7 +716,6 @@ class Character(pygame.sprite.Sprite):
 				self.rect.y += velocity
 				#self.mapY += velocity
 				self.direction = "DOWN"
-				self.rotate()
 				if pygame.sprite.spritecollide(self, obstacleList,False):
 					self.rect.y -= velocity
 					#self.mapY -= velocity
@@ -715,7 +728,6 @@ class Character(pygame.sprite.Sprite):
 				self.rect.x -= velocity
 				# self.mapX -= math.floor(velocity)
 				self.direction = "LEFT"
-				self.rotate()
 				if pygame.sprite.spritecollide(self, obstacleList,False):
 					self.rect.x += velocity
 					# self.mapX += velocity
@@ -728,7 +740,6 @@ class Character(pygame.sprite.Sprite):
 				self.rect.x += velocity
 				# self.mapX += velocity
 				self.direction = "RIGHT"
-				self.rotate()
 				if pygame.sprite.spritecollide(self, obstacleList,False):
 					self.rect.x -= velocity
 					# self.mapX -= velocity
@@ -780,17 +791,12 @@ class Character(pygame.sprite.Sprite):
 		self.dead = pygame.time.get_ticks()
 		if not serverSide:
 			self.health = 0
-			self.tell_server("death")
 			self.deadSprite()
 		if self.talking:
 			self.endTalk(serverSide)
 
 	def deadSprite(self):
-		self.image = pygame.image.load("Assets/ded.png")
-		self.image_orig = pygame.image.load(
-			"Assets/ded.png")  # This one is always upright which is useful for rotating with movement
-		self.image_orig = pygame.transform.scale(self.image_orig, (self.width, self.height))
-		self.image = pygame.transform.scale(self.image, (self.width, self.height))
+		self.image = self.deadImage
 
 	def checkRevive(self, players):
 		checked = False
@@ -814,14 +820,9 @@ class Character(pygame.sprite.Sprite):
 						player.reviveSelf()
 
 	def reviveSelf(self):
-		print("REVIVING BITCH")
 		self.health = 50
 		self.dead = False
-		self.image = pygame.image.load("Assets/rocket.png")
-		self.image_orig = pygame.image.load(
-			"Assets/rocket.png")  # This one is always upright which is useful for rotating with movement
-		self.image_orig = pygame.transform.scale(self.image_orig, (self.width, self.height))
-		self.image = pygame.transform.scale(self.image, (self.width, self.height))
+		self.image = self.aliveImage
 
 
 '''

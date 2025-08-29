@@ -100,6 +100,7 @@ def recv_from_server(conn):
 
             if packet["command"] == "DIE":
                 if player.id == packet["data"]:
+                    player.tell_server("death")
                     player.die()
                 else:
                     for p in characters:
@@ -111,6 +112,8 @@ def recv_from_server(conn):
                 for p in characters:
                     if p.id in packet["data"]["idList"]:
                         p.reviveSelf()
+                        if p == player:
+                            player.tell_server("revived")
 
             if packet["command"] == "NPCACTIONS":
                 for command in packet["data"]:
@@ -212,6 +215,7 @@ while running == True:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
+            pygame.quit()
         if event.type == pygame.KEYDOWN:
             keys = pygame.key.get_pressed()
         if event.type == pygame.MOUSEBUTTONUP:
