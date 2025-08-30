@@ -196,9 +196,10 @@ class MapGenerator:
         return self.obstacles
 
     def createObstacles(self):
-        self.obstacleList = []
+        self.obstacleList = pygame.sprite.Group()
         for obstacle in self.obstacles:
-            self.obstacleList.append(Obstacle(obstacle[0], obstacle[1], obstacle[2]))
+            if obstacle[1] == "house":
+                self.obstacleList.add(House(*obstacle[0]))
 
     def finalise(self):
         self.text2Tile()
@@ -241,29 +242,34 @@ class Tile:
         self.img = BIOME_IMGS[biome]
 
 class Obstacle(pygame.sprite.Sprite):
-    def __init__(self, type, x, y):
+    def __init__(self, x, y, width, height, image):
         super().__init__()
-        self.width = TILE_SIZE
-        self.height = TILE_SIZE
-        self.image = pygame.surface.Surface((TILE_SIZE, TILE_SIZE))
-        self.image.fill((255, 0, 0))
-        pygame.draw.rect(self.image, (255, 0, 0), (0, 0, self.width, self.height))
-        self.rect = self.image.get_rect()
         self.mapX = x
         self.mapY = y
+        self.width = width
+        self.height = height
+        self.image = pygame.image.load(image)
+        self.image = pygame.transform.scale(self.image, (self.width, self.height))
+        self.rect = self.image.get_rect()
         self.rect.center = (x, y)
-        self.type = type
 
     def __repr__(self):
         return f"{self.mapX}, {self.mapY}, obstacle"
 
-class ServerObstacle:
-    def __init__(self, type, x, y):
-        self.type = type
-        self.width = TILE_SIZE
-        self.height = TILE_SIZE
-        self.mapX = x
-        self.mapY = y
+class House(Obstacle):
+    def __init__(self, x, y, owner):
+        super().__init__(x, y, TILE_SIZE*8, TILE_SIZE*8, "Assets/house.png")
+        self.owner = owner
+
+
+
+# class ServerObstacle:
+#     def __init__(self, type, x, y):
+#         self.type = type
+#         self.width = TILE_SIZE
+#         self.height = TILE_SIZE
+#         self.mapX = x
+#         self.mapY = y
 
 
 #

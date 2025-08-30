@@ -165,22 +165,20 @@ def wait_screen():
 
 textMap = [['DWater', 'Plains', 'Plains', 'Plains', 'Water', 'DWater', 'Plains', 'Plains', 'Forest', 'Forest', 'Forest', 'Plains', 'Forest', 'Forest', 'Plains', 'Forest', 'Forest', 'Plains', 'Forest', 'Mountain'], ['Forest', 'Water', 'Forest', 'Plains', 'Plains', 'Plains', 'Water', 'Water', 'Water', 'Forest', 'Water', 'Plains', 'Plains', 'Forest', 'Plains', 'Forest', 'Plains', 'Plains', 'Forest', 'Forest'], ['Forest', 'Plains', 'Forest', 'Water', 'Plains', 'Forest', 'Plains', 'Forest', 'Forest', 'Plains', 'Plains', 'Mountain', 'Plains', 'Plains', 'Plains', 'Forest', 'Plains', 'Forest', 'Plains', 'Forest'], ['Forest', 'Plains', 'Water', 'Forest', 'Plains', 'Plains', 'Plains', 'Forest', 'Forest', 'Forest', 'Forest', 'Plains', 'Plains', 'Plains', 'Plains', 'Forest', 'Forest', 'Plains', 'Forest', 'Mountain'], ['Forest', 'Plains', 'Plains', 'Plains', 'Forest', 'Forest', 'Forest', 'Plains', 'Forest', 'Mountain', 'Plains', 'Plains', 'Plains', 'Plains', 'Water', 'Plains', 'Forest', 'HMountain', 'Plains', 'Forest'], ['Forest', 'Plains', 'Forest', 'Forest', 'Water', 'Forest', 'Plains', 'Plains', 'Plains', 'Plains', 'Plains', 'Plains', 'Plains', 'Water', 'Forest', 'Forest', 'HMountain', 'Forest', 'Mountain', 'HMountain'], ['Forest', 'Mountain', 'Forest', 'Plains', 'Plains', 'Plains', 'Forest', 'Mountain', 'Water', 'Plains', 'Forest', 'Forest', 'Plains', 'Mountain', 'Forest', 'Forest', 'Forest', 'Mountain', 'Forest', 'Forest'], ['Plains', 'Plains', 'Water', 'Forest', 'Mountain', 'Plains', 'Plains', 'Plains', 'Water', 'Forest', 'DWater', 'Forest', 'DWater', 'Mountain', 'Plains', 'Mountain', 'Mountain', 'Forest', 'Forest', 'Forest'], ['Mountain', 'Forest', 'Forest', 'Plains', 'Plains', 'Plains', 'Forest', 'Mountain', 'Forest', 'Water', 'Water', 'Mountain', 'Mountain', 'Forest', 'HMountain', 'Mountain', 'Mountain', 'Plains', 'Plains', 'Forest'], ['Water', 'Forest', 'Forest', 'Plains', 'Plains', 'Forest', 'Mountain', 'Water', 'Plains', 'DWater', 'DWater', 'Mountain', 'Water', 'Mountain', 'Forest', 'Forest', 'Forest', 'Plains', 'Forest', 'Mountain'], ['Plains', 'Plains', 'Plains', 'Plains', 'Plains', 'Plains', 'Forest', 'Water', 'Mountain', 'HMountain', 'HMountain', 'Mountain', 'Water', 'Forest', 'Plains', 'Plains', 'Forest', 'Mountain', 'Forest', 'Forest'], ['Forest', 'Forest', 'Mountain', 'Forest', 'Plains', 'Water', 'Forest', 'Water', 'Mountain', 'Forest', 'Water', 'DWater', 'Water', 'Mountain', 'HMountain', 'HMountain', 'Mountain', 'Mountain', 'Mountain', 'Forest'], ['Plains', 'Plains', 'Plains', 'Water', 'Forest', 'Forest', 'Forest', 'Forest', 'HMountain', 'HMountain', 'Mountain', 'Mountain', 'Water', 'Forest', 'Mountain', 'Plains', 'Mountain', 'Mountain', 'Mountain', 'Mountain'], ['Plains', 'Plains', 'Plains', 'Forest', 'Plains', 'Plains', 'Water', 'Plains', 'Forest', 'Mountain', 'DWater', 'DWater', 'HMountain', 'Mountain', 'Forest', 'Forest', 'Forest', 'Forest', 'Plains', 'Plains'], ['Plains', 'Plains', 'Plains', 'Water', 'Plains', 'Plains', 'Mountain', 'Forest', 'Plains', 'Plains', 'Water', 'Forest', 'Mountain', 'Mountain', 'DWater', 'Plains', 'Forest', 'Forest', 'Forest', 'Forest'], ['Plains', 'Forest', 'Forest', 'Plains', 'Plains', 'Plains', 'Forest', 'Forest', 'Water', 'Mountain', 'Plains', 'Forest', 'Plains', 'Mountain', 'Plains', 'Plains', 'Mountain', 'Forest', 'Forest', 'Plains'], ['Forest', 'Forest', 'Plains', 'Forest', 'Plains', 'Forest', 'Forest', 'Forest', 'Forest', 'Forest', 'Plains', 'Mountain', 'Plains', 'Plains', 'Forest', 'Forest', 'Forest', 'Plains', 'Forest', 'Plains'], ['Plains', 'Mountain', 'Forest', 'Plains', 'Plains', 'Plains', 'Mountain', 'Plains', 'Mountain', 'Forest', 'Forest', 'Forest', 'Mountain', 'Forest', 'Plains', 'Water', 'Forest', 'Mountain', 'Forest', 'Plains'], ['Plains', 'Plains', 'Plains', 'Forest', 'Mountain', 'Mountain', 'Forest', 'Forest', 'Forest', 'Forest', 'Forest', 'Plains', 'Plains', 'Forest', 'Forest', 'Water', 'Plains', 'Plains', 'Forest', 'Plains'], ['Plains', 'Forest', 'Forest', 'Forest', 'Forest', 'Plains', 'Plains', 'Forest', 'Plains', 'Plains', 'Forest', 'Forest', 'Mountain', 'Forest', 'Plains', 'Forest', 'Plains', 'Water', 'Forest', 'Mountain']]
 
-y = 0
-for row in MAP:
-    x = 0
-    for cell in row:
-        if cell == "1":
-            w = Wall((x*TILE_SIZE)+TILE_SIZE//2,(y*TILE_SIZE)+TILE_SIZE//2)
-            obstacleList.add(w)
-        x += 1
-    y+=1
+# y = 0
+# for row in MAP:
+#     x = 0
+#     for cell in row:
+#         if cell == "1":
+#             w = Wall((x*TILE_SIZE)+TILE_SIZE//2,(y*TILE_SIZE)+TILE_SIZE//2)
+#             obstacleList.add(w)
+#         x += 1
+#     y+=1
 
 running = wait_screen()
 
 world = World(textMap, obstacles)
-for obstacle in world.obstacleList:
-    obstacleList.add(obstacle)
-world.nodes = nodeSetup(obstacleList, world.nodes)
+world.nodes = nodeSetup(world.obstacleList, world.nodes)
 count = 0
 
 
@@ -197,15 +195,6 @@ count = 0
 	# 	  world.nodes[19][5].right, world.nodes[19][5].bottomRight, world.nodes[19][5].down,
 	# 	  world.nodes[19][5].bottomLeft, world.nodes[19][5].left)
 
-#
-# for y in world.nodes:
-# 	string = ""
-# 	for x in y:
-# 		if x:
-# 			string += "0"
-# 		else:
-# 			string += "1"
-# 	print(string)
 player = characters.sprites()[0]
 packet = {"command":"STARTCONFIRMATION"}
 s.send((json.dumps(packet) + "#").encode())
@@ -225,11 +214,11 @@ while running == True:
 
     bullets.update(enemyList)
     explosions.update()
-    player.move()
+    player.move(world.obstacleList)
     player.camera.worldAdjust(SCREEN, world, characters, enemyList, npcList)
     player.camera.reAdjust()
     player.camera.bulletAdjust(bullets, explosions)
-    player.camera.obstacleAdjust(obstacleList)
+    player.camera.obstacleAdjust(world.obstacleList)
     player.checkRevive(characters)
     if player.hud.animation:
         if player.hud.animation == "open":
@@ -253,10 +242,10 @@ while running == True:
     world.draw(SCREEN)
     explosions.draw(SCREEN)
     npcList.draw(SCREEN)
-    enemyList.draw(SCREEN)
     characters.draw(SCREEN)
-    obstacleList.draw(SCREEN)
+    world.obstacleList.draw(SCREEN)
     bullets.draw(SCREEN)
+    enemyList.draw(SCREEN)
     player.hud.draw(SCREEN)
     clock.tick(60)
     pygame.display.update()

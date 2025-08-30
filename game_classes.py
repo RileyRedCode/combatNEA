@@ -69,7 +69,7 @@ class World:
 		self.x = 0
 		self.y = 0
 		mapGen = MapGen.MapGenerator(textMap, obstacles)
-		self.img, self.obstacleList = mapGen.finalise()
+		self.img, self.obstacleList = mapGen. finalise()
 		# Convert the PIL Image to a pygame Surface so that it can blit-ed without any issues
 		img_bytes = self.img.tobytes()
 		img_size = self.img.size
@@ -684,7 +684,7 @@ class Character(pygame.sprite.Sprite):
 	Purpose: This checks if a player can move or wether they will collide with a wall. If the player is moving in 
 	multiple directions it will lower the velocity. 
 	'''
-	def move(self):
+	def move(self, obstacles):
 		if not self.talking and not self.dead:
 			keys = pygame.key.get_pressed()
 			velocity = 6
@@ -702,7 +702,7 @@ class Character(pygame.sprite.Sprite):
 				self.rect.y -= velocity
 				#self.mapY -= velocity
 				self.direction = "UP"
-				if pygame.sprite.spritecollide(self, obstacleList, False):
+				if pygame.sprite.spritecollide(self, obstacles, False):
 					self.rect.y += velocity
 					#self.mapY += velocity
 				if self.rect.y <0:
@@ -715,7 +715,7 @@ class Character(pygame.sprite.Sprite):
 				self.rect.y += velocity
 				#self.mapY += velocity
 				self.direction = "DOWN"
-				if pygame.sprite.spritecollide(self, obstacleList,False):
+				if pygame.sprite.spritecollide(self, obstacles,False):
 					self.rect.y -= velocity
 					#self.mapY -= velocity
 				if self.rect.y > SCREEN_SIZE[1]-self.height:
@@ -727,7 +727,7 @@ class Character(pygame.sprite.Sprite):
 				self.rect.x -= velocity
 				# self.mapX -= math.floor(velocity)
 				self.direction = "LEFT"
-				if pygame.sprite.spritecollide(self, obstacleList,False):
+				if pygame.sprite.spritecollide(self, obstacles,False):
 					self.rect.x += velocity
 					# self.mapX += velocity
 				if self.rect.x < 0:
@@ -739,7 +739,7 @@ class Character(pygame.sprite.Sprite):
 				self.rect.x += velocity
 				# self.mapX += velocity
 				self.direction = "RIGHT"
-				if pygame.sprite.spritecollide(self, obstacleList,False):
+				if pygame.sprite.spritecollide(self, obstacles,False):
 					self.rect.x -= velocity
 					# self.mapX -= velocity
 				if self.rect.x > SCREEN_SIZE[0]-self.width:
