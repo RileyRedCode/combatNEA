@@ -237,7 +237,6 @@ class Hud:
 	damage bars length will slowly decrease). 
 	'''
 	def healthCalc(self, playerHealth):
-		print(playerHealth, self.displayHealth)
 		if self.displayHealth != playerHealth:
 			#If health has been lost
 			if playerHealth < self.displayHealth:
@@ -512,7 +511,7 @@ class Explosion(pygame.sprite.Sprite):
 				distance = math.sqrt(((player.mapX - self.mapX) ** 2) + ((player.mapY - self.mapY) ** 2))
 				# Close proximity damage
 				if distance - 20 < (self.height // 2) // 2:
-					victims.append({"id":player.connection, "damage":140})
+					victims.append({"id":player.connection, "damage":40})
 				# Far proximity damage
 				elif distance - 20 < self.height // 2:
 					victims.append({"id": player.connection, "damage": 10})
@@ -1037,6 +1036,7 @@ class Enemy(pygame.sprite.Sprite):
 
 class ServerEnemy:
 	idcount = 0
+	directions = [(-1, -1), (0, -2), (1, -1), (2, 0), (1, 1), (0, 2), (-1, 1), (-2, 0)]
 	def __init__(self, x, y):
 		self.width = TILE_SIZE
 		self.height = TILE_SIZE
@@ -1047,77 +1047,95 @@ class ServerEnemy:
 		self.id = ServerEnemy.idcount
 		ServerEnemy.idcount += 1
 		self.confirm = False
+		self.walking = 0
+		self.direction = (4, 4)
+		self.targets = []
 
 	def locate(self, playerList, serverNodes):
-		shortestDis = False
-		target = False
-		if playerList:#If a player has been sighted
-			for player in playerList:#This finds the closest one
-				if not playerList[player].dead:
-					distance =  (self.mapX - playerList[player].mapX), (self.mapY - playerList[player].mapY)
-					hypotenuse = math.sqrt((distance[0]**2)+(distance[1]**2))
-					if not shortestDis or hypotenuse < shortestDis:
-						target = playerList[player]
-						shortestDis = hypotenuse
+		for p in playerList:
+			distance = (self.mapX - playerList[p].mapX), (self.mapY - playerList[p].mapY)
+			hypotenuse = math.sqrt((distance[0] ** 2) + (distance[1] ** 2))
+			if hypotenuse < 500 and not playerList[p].dead:
+				self.targets.append([playerList[p], hypotenuse])
+			elif playerList[p] in self.targets:
+				for t in self.targets:
+					if t[0] == playerList[p]:
+						if playerList[p].dead:
+							self.targets.remove(t)
+						else:
+							t[1] = hypotenuse
 
-		#A* search
-		paths = priorityQueue()# structure of each entry - [Node name, path cost, combined heuristic (distance from Node + The path ), 	[Node paths]]
-		goalNode = serverNodes[target.mapY//TILE_SIZE][target.mapX//TILE_SIZE]
-		solution = False
-		X = int(self.mapX//TILE_SIZE)#Need the location of the enemy in reference to Nodes
-		Y = int(self.mapY//TILE_SIZE)
-		paths.enqueue([serverNodes[Y][X], 0, math.sqrt(((serverNodes[Y][X].mapX - target.mapX)**2)+((serverNodes[Y][X].mapY - target.mapY)**2)), []])#This is the start node
-		visited = []
-		while not solution:
-			current = paths.dequeue()
-			visited.append(current[0])
-			for neighbour in current[0].neighbours:#Evaluates all neighbours to be queued
-				# if neighbour:
-				present = False#This checks to ensure that there aren't duplicates of the same Node being added
+		if len(self.targets) > 0:#If a player has been sighted
+			shortestDis = False
+			target = False
+			for p in self.targets:#This finds the closest one
+				if not shortestDis or p[1] < shortestDis:
+					target = p[0]
+					shortestDis = p[1]
 
-				#Checking the node hasn't already been checked or queued
-				if neighbour in visited:
-					present = True
-				else:
-					for path in paths.queue:
-						if neighbour == path[0]:
-							present = True
-							#This updates a path if a shorter route to the same node is found
-							if path[1] > current[1] + abs(math.sqrt(((neighbour.mapX - target.mapX) ** 2) + ((neighbour.mapY - target.mapY) ** 2))):
-								path[1] = current[1] + abs(math.sqrt(((neighbour.mapX - target.mapX) ** 2) + ((neighbour.mapY - target.mapY) ** 2)))
-								path[2] = abs(math.sqrt(((neighbour.mapX - current[0].mapX) ** 2) + ((neighbour.mapY - current[0].mapY) ** 2))) + abs(math.sqrt(((neighbour.mapX - target.mapX) ** 2) + ((neighbour.mapY - target.mapY) ** 2)))
-								pathNodes = current[3]
-								pathNodes.append(current[0])
-								path[3] = pathNodes
-								paths.insert(path)
+			#A* search
+			paths = priorityQueue()# structure of each entry - [Node name, path cost, combined heuristic (distance from Node + The path ), 	[Node paths]]
+			goalNode = serverNodes[target.mapY//TILE_SIZE][target.mapX//TILE_SIZE]
+			solution = False
+			X = int(self.mapX//TILE_SIZE)#Need the location of the enemy in reference to Nodes
+			Y = int(self.mapY//TILE_SIZE)
+			paths.enqueue([serverNodes[Y][X], 0, math.sqrt(((serverNodes[Y][X].mapX - target.mapX)**2)+((serverNodes[Y][X].mapY - target.mapY)**2)), []])#This is the start node
+			visited = []
+			while not solution:
+				current = paths.dequeue()
+				visited.append(current[0])
+				for neighbour in current[0].neighbours:#Evaluates all neighbours to be queued
+					# if neighbour:
+					present = False#This checks to ensure that there aren't duplicates of the same Node being added
 
-
-
-				if not present:
-					pathNodes = current[3][:]
-					pathNodes.append(current[0])
-					if neighbour == goalNode:
-						solution = True
-						successfulPath = []
-						for node in pathNodes:
-							successfulPath.append(node)
-						del(paths)
-						return successfulPath
-
+					#Checking the node hasn't already been checked or queued
+					if neighbour in visited:
+						present = True
 					else:
-						paths.enqueue([neighbour, abs(math.sqrt(((neighbour.mapX - current[0].mapX) ** 2)+((neighbour.mapY - current[0].mapY)**2))) + current[1],#this calculates the hypotenuse from one neighbour to another then adds the previous nodes path cost
-								  abs(math.sqrt(((neighbour.mapX - current[0].mapX) ** 2)+((neighbour.mapY - current[0].mapY)**2))) + abs(math.sqrt(((neighbour.mapX - target.mapX)**2)+((neighbour.mapY - target.mapY)**2))), pathNodes])
-			if current[0] == goalNode:
-				solution = True
+						for path in paths.queue:
+							if neighbour == path[0]:
+								present = True
+								#This updates a path if a shorter route to the same node is found
+								if path[1] > current[1] + abs(math.sqrt(((neighbour.mapX - target.mapX) ** 2) + ((neighbour.mapY - target.mapY) ** 2))):
+									path[1] = current[1] + abs(math.sqrt(((neighbour.mapX - target.mapX) ** 2) + ((neighbour.mapY - target.mapY) ** 2)))
+									path[2] = abs(math.sqrt(((neighbour.mapX - current[0].mapX) ** 2) + ((neighbour.mapY - current[0].mapY) ** 2))) + abs(math.sqrt(((neighbour.mapX - target.mapX) ** 2) + ((neighbour.mapY - target.mapY) ** 2)))
+									pathNodes = current[3]
+									pathNodes.append(current[0])
+									path[3] = pathNodes
+									paths.insert(path)
 
+
+
+					if not present:
+						pathNodes = current[3][:]
+						pathNodes.append(current[0])
+						if neighbour == goalNode:
+							solution = True
+							successfulPath = []
+							for node in pathNodes:
+								successfulPath.append(node)
+							del(paths)
+							return successfulPath
+
+						else:
+							paths.enqueue([neighbour, abs(math.sqrt(((neighbour.mapX - current[0].mapX) ** 2)+((neighbour.mapY - current[0].mapY)**2))) + current[1],#this calculates the hypotenuse from one neighbour to another then adds the previous nodes path cost
+									  abs(math.sqrt(((neighbour.mapX - current[0].mapX) ** 2)+((neighbour.mapY - current[0].mapY)**2))) + abs(math.sqrt(((neighbour.mapX - target.mapX)**2)+((neighbour.mapY - target.mapY)**2))), pathNodes])
+				if current[0] == goalNode:
+					solution = True
+		else:
+			return False
 	def travel(self, path):
+		packet =  None
+		if self.health <= 0:
+			packet = (self.id, "ENEMYDIE")
 		#This stops the game from breaking if the player is so close that no path is returned
-		if path:
-			if self.health <= 0:
-				packet = (self.id, "ENEMYDIE")
 
+		elif self.startTime:
+			return None
+
+		elif path:
 			# Starts the attack sequence although maybe I should move this somewhere else?
-			elif len(path) < 2:
+			if len(path) < 2:
 				if not self.startTime:
 					self.startTime = pygame.time.get_ticks()
 				packet = (self.id, "ENEMYATTACK")
@@ -1138,8 +1156,18 @@ class ServerEnemy:
 				self.mapX += sides[0]
 				self.mapY += sides[1]
 				packet = (self.id, "ENEMYMOVE", self.mapX, self.mapY)
+		else:
+			if pygame.time.get_ticks() - self.walking >= 800:
+				self.walking = pygame.time.get_ticks()
+				r = random.randint(0, 7)
+				self.direction = ServerEnemy.directions[r]
 
-			return packet
+			self.mapX += self.direction[0]
+			self.mapY += self.direction[1]
+
+			packet = (self.id, "ENEMYMOVE", self.mapX, self.mapY)
+
+		return packet
 
 	def takeDamage(self, damage):
 		self.health -= damage

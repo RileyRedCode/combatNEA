@@ -1,4 +1,6 @@
 import socket, threading, json, time, pygame
+from idlelib.query import Query
+
 from MapGen import MapGenerator, ServerObstacle
 from game_classes import nodeSetup, ServerEnemy, NPC, Bullet, Explosion, TILE_SIZE, MAP_WIDTH, SCREEN_SIZE, Character
 
@@ -22,6 +24,11 @@ def recv_from_client(conn,client_list):
 
                     if packet["command"] == "PROJECTILE":
                         serverBullets.add(Bullet(packet["data"]["xPos"], packet["data"]["yPos"], packet["data"]["coOrds"]))
+
+                    if packet["command"] == "STARTCONFIRMATION":
+                        for c in confirmationList:
+                            if c[0] == client:
+                                c[1] = True
 
                     if packet["command"] == "DEATHCONFIRMATION":
                         players[client].confirm = True
@@ -54,11 +61,15 @@ def send_to_client(client_list, packet, identity=False):
         for client in client_list:
             client.send((json.dumps(packet) + "#").encode())
 
-def gameLoop(players, serverEnemies, client_list, serverBullets):
+def gameLoop(players, serverEnemies, client_list, serverBullets, confirmationList):
+    game = False
+    while not game:
+        game = True
+        for c in confirmationList:
+            if not c[1]:
+                game = False
     while game:
         for player in players:
-            if players[player].id == 1:
-                print("Dead:", players[player].dead, "\tConfirm:", players[player].confirm)
             if players[player].dead and not players[player].confirm:#This will keep sending the death message until confirmation is received
                 dpacket = {"command": "DIE", "data":players[player].id}
                 send_to_client(client_list, dpacket)
@@ -147,6 +158,7 @@ def gameLoop(players, serverEnemies, client_list, serverBullets):
 s = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
 s.bind( (HOST,PORT) )
 client_list = []
+confirmationList = []
 players = {}
 player_positions = [(1000,1000),(1000,1000)]
 
@@ -173,10 +185,10 @@ for npc in serverNPCs:
 #Server enemies is a list of the actual objects whereas enemies just contains the data required to send to clients
 serverEnemies = []
 enemies = []
-serverEnemies.append(ServerEnemy(3000, 3000))
-serverEnemies.append(ServerEnemy(3000, 4000))
-serverEnemies.append(ServerEnemy(4000, 4000))
-serverEnemies.append(ServerEnemy(6000, 4000))
+serverEnemies.append(ServerEnemy(2000, 2000))
+# serverEnemies.append(ServerEnemy(3000, 4000))
+# serverEnemies.append(ServerEnemy(4000, 4000))
+# serverEnemies.append(ServerEnemy(6000, 4000))
 # serverEnemies.append(ServerEnemy(5000, 4000))
 # serverEnemies.append(ServerEnemy(3000, 5000))
 for enemy in serverEnemies:
@@ -193,6 +205,7 @@ s.listen(1)
 while True:
     conn, addr = s.accept()
     client_list.append(conn)
+    confirmationList.append([conn, False])
     print("New Connection from ",addr)
     threading.Thread(target=recv_from_client, args=(conn,client_list)).start()
     if len(client_list) % 2 == 1:
@@ -227,8 +240,7 @@ while True:
     # 	conn.send(json.dumps(message).encode())
     # 	time.sleep(1)
     if len(client_list) == 2:
-        game = True
-        threading.Thread(target=gameLoop, args=(players, serverEnemies, client_list, serverBullets)).start()
+        threading.Thread(target=gameLoop, args=(players, serverEnemies, client_list, serverBullets, confirmationList)).start()
         message = {"command": "START"}
 
         for c in client_list:

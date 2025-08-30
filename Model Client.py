@@ -177,7 +177,6 @@ for row in MAP:
 
 running = wait_screen()
 
-
 world = World(textMap, obstacles)
 for obstacle in world.obstacleList:
     obstacleList.add(obstacle)
@@ -207,10 +206,11 @@ count = 0
 # 		else:
 # 			string += "1"
 # 	print(string)
-
 player = characters.sprites()[0]
-spotting = False
+packet = {"command":"STARTCONFIRMATION"}
+s.send((json.dumps(packet) + "#").encode())
 while running == True:
+    print(player.mapX, player.mapY)
     SCREEN.fill(WHITE)
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
