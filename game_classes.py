@@ -181,10 +181,11 @@ class Hud:
 		if self.owner.revive:
 			screen.blit(self.revive, self.reviveRect)
 
-	def startAnimation(self, type):
+	def startAnimation(self, type, npc):
 		if type == "open":
 			self.jitter = False
 			self.animation = "open"
+			self.speaker, self.dialogue = npc.getSpeaker()
 		elif type == "close":
 			self.animation = "close"
 
@@ -221,6 +222,16 @@ class Hud:
 		self.talkBgRect.x += increment
 		if self.speakerRect.x > 800:
 			self.owner.talking = False
+
+	def talk(self):
+		if self.owner.talking:
+			if self.animation:
+				if self.animation == "open":
+					self.animateTalk()
+				elif self.animation == "close":
+					self.animateExit()
+			else:
+				self.disText()
 
 	def disText(self):
 		if self.letters != len(self.message):
@@ -633,23 +644,6 @@ class Character(pygame.sprite.Sprite):
 			sides = coOrds
 		b = Bullet(self.mapX, self.mapY, sides)
 		bullets.add(b)
-
-	# '''
-	# Name: rotate
-	# Parameters: None
-	# Returns: None
-	# Purpose: This rotates the players image depending on the direction they have last travelled in.
-	# '''
-	# def rotate(self):
-	# 	angle = 0
-	# 	if self.direction == "DOWN":
-	# 		angle = 180
-	# 	elif self.direction == "LEFT":
-	# 		angle = 90
-	# 	elif self.direction == "RIGHT":
-	# 		angle = 270
-	#
-	# 	self.image = pygame.transform.rotate(self.image_orig,angle)
 
 	'''
 	Name: tell_server
@@ -1173,64 +1167,6 @@ class ServerEnemy:
 		self.health -= damage
 		if self.health <= 0:
 			self.health = 0
-
-class NPC(pygame.sprite.Sprite):
-	#class variables
-	idcount = 0
-	directions = {1:"left", 2:"up", 3:"right", 4:"down"}
-	def __init__(self, x, y, id=False):
-		super().__init__()
-		self.width = TILE_SIZE
-		self.height = TILE_SIZE
-		self.image = pygame.image.load("Assets/NPC.png")
-		self.image_orig = pygame.image.load("Assets/NPC.png")
-		self.image_orig = pygame.transform.scale(self.image_orig, (self.width, self.height))
-		self.image = pygame.transform.scale(self.image,(self.width,self.height))
-		self.rect = self.image.get_rect()
-		self.rect.center = -400, -400
-		self.mapX = x
-		self.mapY = y
-		if id:
-			self.id = id
-		else:
-			self.id = NPC.idcount
-		NPC.idcount += 1
-		self.activity = ["idol", pygame.time.get_ticks()]#[activity, time started]
-		self.customers = []
-
-	def determineState(self):
-		if self.activity[0] != "talking":
-			# This swaps states
-			if pygame.time.get_ticks() - self.activity[1] >= 2000 and self.activity[0] == "idol":
-				direction = self.directions[random.randint(1, 4)]
-				self.activity = ["moving", pygame.time.get_ticks(), direction]
-			elif pygame.time.get_ticks() - self.activity[1] >= 1000 and self.activity[0] == "moving":
-				self.activity = ["idol", pygame.time.get_ticks()]
-
-			# Action
-			if self.activity[0] == "moving":
-				if self.activity[2] == "left":
-					self.mapX -= 2
-				elif self.activity[2] == "up":
-					self.mapY -= 2
-				elif self.activity[2] == "right":
-					self.mapX += 2
-				elif self.activity[2] == "down":
-					self.mapY += 2
-				return self.id, self.mapX, self.mapY
-
-		return False
-
-	def addCustomer(self, customer):
-		self.customers.append(customer)
-		if self.activity[0] != "talking":
-			self.activity[0] = "talking"
-
-	def removeCustomer(self, customer):
-		self.customers.remove(customer)
-		if len(self.customers) == 0:
-			self.activity[0] = "idol"
-
 
 '''
 Name: nodeSetup

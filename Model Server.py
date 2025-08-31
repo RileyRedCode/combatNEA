@@ -2,7 +2,8 @@ import socket, threading, json, time, pygame
 from idlelib.query import Query
 
 from MapGen import MapGenerator, House
-from game_classes import nodeSetup, ServerEnemy, NPC, Bullet, Explosion, TILE_SIZE, MAP_WIDTH, SCREEN_SIZE, Character
+from game_classes import nodeSetup, ServerEnemy, Bullet, Explosion, TILE_SIZE, MAP_WIDTH, SCREEN_SIZE, Character
+from npcs import NPC
 
 HOST = '127.0.0.1'
 PORT = 50000
@@ -185,10 +186,10 @@ serverNodes = nodeSetup(serverObstacles, serverNodes)
 
 #NPCs
 serverNPCs = pygame.sprite.Group()
-npcs = []
+npclist = []
 serverNPCs.add(NPC(1600, 1400))
 for npc in serverNPCs:
-    npcs.append([npc.mapX, npc.mapY, npc.id])
+    npclist.append([npc.mapX, npc.mapY, npc.id])
 
 #Enemies
 #Server enemies is a list of the actual objects whereas enemies just contains the data required to send to clients
@@ -236,7 +237,7 @@ while True:
     message = {"command":"ENEMIES", "data":enemies}
     conn.send((json.dumps(message)+"#").encode())
     time.sleep(1)
-    message = {"command": "NPCS", "data": npcs}
+    message = {"command": "NPCS", "data": npclist}
     conn.send((json.dumps(message) + "#").encode())
     time.sleep(1)
 

@@ -1,8 +1,8 @@
 import pygame, random, socket, threading, json, math
 from game_classes import SCREEN_SIZE, TILE_SIZE, obstacleList, npcList, enemyList, bullets, characters, explosions, Wall, \
-    Character, Bullet, World, Enemy, NPC, nodeSetup
+    Character, Bullet, World, Enemy, nodeSetup
 from game_classes import WHITE, BLACK
-
+from npcs import NPC
 
 HOST = '127.0.0.1'
 PORT = 50000
@@ -220,6 +220,7 @@ while running == True:
     player.camera.bulletAdjust(bullets, explosions)
     player.camera.obstacleAdjust(world.obstacleList)
     player.checkRevive(characters)
+    player.hud.talk()
     if player.hud.animation:
         if player.hud.animation == "open":
             player.hud.animateTalk()
