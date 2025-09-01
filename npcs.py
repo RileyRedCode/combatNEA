@@ -1,4 +1,4 @@
-import pygame, random
+import pygame, random, time
 from game_classes import TILE_SIZE
 
 class NPC(pygame.sprite.Sprite):
@@ -15,6 +15,7 @@ class NPC(pygame.sprite.Sprite):
 		self.activity = ["idol", pygame.time.get_ticks()]#[activity, time started]
 		self.customers = []
 		self.dialogue = {}
+		self.firstChat = False
 
 		#id
 		if id:
@@ -66,16 +67,20 @@ class NPC(pygame.sprite.Sprite):
 			self.activity[0] = "idol"
 
 	def getSpeaker(self):
-		return self.speakImage, self.dialogue
+		if not self.firstChat:
+			start = "firstMeet"
+		else:
+			start = "greetings"
+		return self.speakImage, self.dialogue, start
 
 class Monarch(NPC):
 	def __init__(self, x, y, id = False):
 		super().__init__(x, y, TILE_SIZE, TILE_SIZE, "Assets/NPC.png", "Assets/speaker.png", id)
-		#Structure = name:([List of dialogue], [nodes that share edges])
-		self.dialogue = {"firstMeet":(["Can't say I've seen your visage about these parts before"], ["choice"]),
+		#Structure = name:([List of dialogue], [nodes that share edges], type e.g choice)
+		self.dialogue = {"firstMeet":(["Can't say I've seen your visage about these parts before..."], ["choice"]),
 						 "greetings":(["You again?", "Hello again."], ["choice"]),
 						 "choice":(["How may I help you?"],["shopStart", "talk", "end"]),
-						 "shopStart":(["Feast your eyes!", "This could all be yours"], ["choice"]),
+						 "shopStart":(["Feast your eyes!", "This could all be yours!"], ["choice"]),
 						 "end":(["Very well", "Goodbye"], []),
 						 "talk":(["We have nothing to talk about"], ["choice"])}
 
@@ -151,6 +156,27 @@ def constructDialogue(dic):
 			d.makeEdge(key, e)
 	return d
 
-m = Monarch(100, 100)
-for node in m.dialogue.nodes:
-	print(node.name, node.dialogue, node.neighbours)
+class Button:
+	def __init__(self, x, y, beimage, primage):
+		self.image = beimage
+		self.beimage = beimage
+		self.primage = primage
+		self.rect = self.image.get_rect()
+		self.rect.topleft = (x,y)
+
+	def draw(self,surface):
+		surface.blit(self.image,(self.rect.x,self.rect.y))
+
+	def click(self, surface, x, y):
+		action = False
+		if self.rect.collidepoint((x, y)):
+			action = True
+			self.image = self.primage
+			surface.blit(self.image, (self.rect.x, self.rect.y))
+			pygame.display.flip()
+			time.sleep(0.15)
+			self.image = self.beimage
+			surface.blit(self.image, (self.rect.x, self.rect.y))
+			pygame.display.flip()
+		return action
+

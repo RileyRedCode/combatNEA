@@ -2,7 +2,7 @@ import pygame, random, socket, threading, json, math
 from game_classes import SCREEN_SIZE, TILE_SIZE, obstacleList, npcList, enemyList, bullets, characters, explosions, Wall, \
     Character, Bullet, World, Enemy, nodeSetup
 from game_classes import WHITE, BLACK
-from npcs import NPC
+from npcs import Monarch
 
 HOST = '127.0.0.1'
 PORT = 50000
@@ -66,13 +66,13 @@ def recv_from_server(conn):
 
             if packet["command"] == "NPCS":
                 for i in packet["data"]:
-                    npcList.add(NPC(*i))
+                    npcList.add(Monarch(*i))
 
             if packet["command"] == "TALK":
                 for npc in npcList:
                     if npc.id == packet["data"]["id"]:
                         player.talking = npc
-                player.hud.startAnimation("open")
+                        player.hud.startAnimation("open", player.talking)
 
                 for npc in npcList:
                     if npc.id == packet["data"]["id"]:
@@ -221,24 +221,18 @@ while running == True:
     player.camera.obstacleAdjust(world.obstacleList)
     player.checkRevive(characters)
     player.hud.talk()
-    if player.hud.animation:
-        if player.hud.animation == "open":
-            player.hud.animateTalk()
-        elif player.hud.animation == "close":
-            player.hud.animateExit()
-    else:
-        if player.talking:
-            player.hud.disText()
+    # if player.hud.animation:
+    #     if player.hud.animation == "open":
+    #         player.hud.animateTalk()
+    #     elif player.hud.animation == "close":
+    #         player.hud.animateExit()
+    # else:
+    #     if player.talking:
+    #         player.hud.disText()
     for enemy in enemyList:
         # If enough time has passed
         if pygame.time.get_ticks() - enemy.startTime >= 200 and enemy.startTime:
             enemy.attack()
-        # if not enemy.startTime:
-        #     path = enemy.locate([player], world)
-        #     enemy.travel(path)
-        # else:
-        #     enemy.attack()
-        # # print(enemy.mapX, enemy.mapY)
 
     world.draw(SCREEN)
     explosions.draw(SCREEN)

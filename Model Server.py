@@ -3,7 +3,7 @@ from idlelib.query import Query
 
 from MapGen import MapGenerator, House
 from game_classes import nodeSetup, ServerEnemy, Bullet, Explosion, TILE_SIZE, MAP_WIDTH, SCREEN_SIZE, Character
-from npcs import NPC
+from npcs import Monarch
 
 HOST = '127.0.0.1'
 PORT = 50000
@@ -187,7 +187,7 @@ serverNodes = nodeSetup(serverObstacles, serverNodes)
 #NPCs
 serverNPCs = pygame.sprite.Group()
 npclist = []
-serverNPCs.add(NPC(1600, 1400))
+serverNPCs.add(Monarch(1600, 1400))
 for npc in serverNPCs:
     npclist.append([npc.mapX, npc.mapY, npc.id])
 

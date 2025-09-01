@@ -147,14 +147,20 @@ class Hud:
 		self.textboxRect = self.textbox.get_rect()
 		self.textboxRect.bottomright = (0, 800)
 
+		self.textDone = False
 		self.jitter = False
 		self.letters = 0
+		self.letterStart = 0
+		self.chatNumber = 0
+		self.chatPos = False
 		self.font = pygame.font.SysFont('Times New Roman', 40)
 
 		self.message = "My name is EDWIN, I made the mimic."
 		self.text = self.font.render((""), False, (255, 255, 255))
-		self.textRect = self.text.get_rect()
+		self.textList = []
 
+		self.continueTxt = self.font.render(("Press space to continue"), False, (255, 255, 255))
+		self.continuePossible = False
 
 	'''
 	Name: draw
@@ -176,8 +182,13 @@ class Hud:
 			screen.blit(self.speaker, self.speakerRect)
 			screen.blit(self.textbox, self.textboxRect)
 			if not self.animation:
-				screen.blit(self.text, self.textRect)
-
+				x,y = 10, 560
+				for text in self.textList:
+					screen.blit(text, (x, y))
+					y += 45
+				screen.blit(self.text, (x, y))
+				if self.continuePossible:
+					screen.blit(self.continueTxt, (420, 755))
 		if self.owner.revive:
 			screen.blit(self.revive, self.reviveRect)
 
@@ -185,7 +196,11 @@ class Hud:
 		if type == "open":
 			self.jitter = False
 			self.animation = "open"
-			self.speaker, self.dialogue = npc.getSpeaker()
+			self.speaker, self.dialogue, self.chatPos = npc.getSpeaker()
+			for node in self.dialogue.nodes:
+				if node.name == self.chatPos:
+					self.chatPos = node
+					self.chatNumber = random.randint(0, len(self.chatPos.neighbours)-1)
 		elif type == "close":
 			self.animation = "close"
 
@@ -225,20 +240,42 @@ class Hud:
 
 	def talk(self):
 		if self.owner.talking:
+			#animations
 			if self.animation:
 				if self.animation == "open":
 					self.animateTalk()
 				elif self.animation == "close":
 					self.animateExit()
 			else:
+				self.nextDialogue()
 				self.disText()
+
+	def nextDialogue(self):
+		if self.textDone:
+			if len(self.chatPos.neighbours) <= 1:
+				keys = pygame.key.get_pressed()
+				if keys[pygame.K_SPACE]:
+					self.chatPos = self.chatPos.neighbours[0]
+					self.chatNumber = random.randint(0, len(self.chatPos.dialogue) - 1)
+					self.letters = 0
+					self.letterStart = 0
+					self.textList = []
+					self.continuePossible = False
+					self.textDone = False
+				else:
+					self.continuePossible = True
+		self.message = self.chatPos.dialogue[self.chatNumber]
+
 
 	def disText(self):
 		if self.letters != len(self.message):
 			self.letters += 1
-			self.text = self.font.render(self.message[:self.letters], False, (255, 255, 255))
-			self.textRect = self.text.get_rect()
-			self.textRect.topleft = 10, 560
+			if self.letters - self.letterStart > 40 and self.message[self.letters-1] == " ":
+				self.textList.append(self.font.render(self.message[self.letterStart:self.letters], False, (255, 255, 255)))
+				self.letterStart = self.letters
+			self.text = self.font.render(self.message[self.letterStart:self.letters], False, (255, 255, 255))
+		else:
+			self.textDone = True
 
 	'''
 	Name: healthCalc
