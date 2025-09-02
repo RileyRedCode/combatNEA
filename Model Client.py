@@ -74,9 +74,7 @@ def recv_from_server(conn):
                         player.talking = npc
                         player.hud.startAnimation("open", player.talking)
 
-                for npc in npcList:
-                    if npc.id == packet["data"]["id"]:
-                        npc.addCustomer(player)
+                        npc.addCustomer(player.id)
 
 
             if packet["command"] == "ENEMIES":
@@ -199,6 +197,8 @@ player = characters.sprites()[0]
 packet = {"command":"STARTCONFIRMATION"}
 s.send((json.dumps(packet) + "#").encode())
 while running == True:
+    for npc in npcList:
+        print(npc.customers)
     print(player.mapX, player.mapY)
     SCREEN.fill(WHITE)
     for event in pygame.event.get():

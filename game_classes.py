@@ -152,7 +152,9 @@ class Hud:
 		self.letters = 0
 		self.letterStart = 0
 		self.chatNumber = 0
+		self.optionSelect = 0
 		self.chatPos = False
+		self.cooldown = False
 		self.font = pygame.font.SysFont('Times New Roman', 40)
 
 		self.message = "My name is EDWIN, I made the mimic."
@@ -160,7 +162,8 @@ class Hud:
 		self.textList = []
 
 		self.continueTxt = self.font.render(("Press space to continue"), False, (255, 255, 255))
-		self.continuePossible = False
+		self.continueDis = False
+		self.optionDis = False
 
 	'''
 	Name: draw
@@ -178,25 +181,38 @@ class Hud:
 		screen.blit(self.healthbar, (TILE_SIZE//4, TILE_SIZE//4))
 
 		if self.owner.talking:
+			#Layoutss
 			screen.blit(self.talkBg, self.talkBgRect)
 			screen.blit(self.speaker, self.speakerRect)
 			screen.blit(self.textbox, self.textboxRect)
+			#Text
 			if not self.animation:
+				#Dialogue
 				x,y = 10, 560
 				for text in self.textList:
 					screen.blit(text, (x, y))
 					y += 45
 				screen.blit(self.text, (x, y))
-				if self.continuePossible:
+				#Continue options
+				if self.continueDis:
 					screen.blit(self.continueTxt, (420, 755))
+				elif self.optionDis:
+					x, y = 600, 560
+					for option in self.optionDis:
+						screen.blit(option, (x, y))
+						y += 45
+
 		if self.owner.revive:
 			screen.blit(self.revive, self.reviveRect)
 
-	def startAnimation(self, type, npc):
+	def startAnimation(self, type, npc = False):
 		if type == "open":
 			self.jitter = False
 			self.animation = "open"
 			self.speaker, self.dialogue, self.chatPos = npc.getSpeaker()
+			self.textboxRect.bottomright = (0, 800)
+			self.speakerRect.center = 860, 400
+			self.talkBgRect.center = (900, 400)
 			for node in self.dialogue.nodes:
 				if node.name == self.chatPos:
 					self.chatPos = node
@@ -255,15 +271,52 @@ class Hud:
 			if len(self.chatPos.neighbours) <= 1:
 				keys = pygame.key.get_pressed()
 				if keys[pygame.K_SPACE]:
-					self.chatPos = self.chatPos.neighbours[0]
-					self.chatNumber = random.randint(0, len(self.chatPos.dialogue) - 1)
+					if self.chatPos.name != "end":
+						self.chatPos = self.chatPos.neighbours[0]
+						self.chatNumber = random.randint(0, len(self.chatPos.dialogue) - 1)
+					else:
+						self.owner.endTalk()
 					self.letters = 0
 					self.letterStart = 0
 					self.textList = []
-					self.continuePossible = False
+					self.continueDis = False
 					self.textDone = False
 				else:
-					self.continuePossible = True
+					self.continueDis = True
+
+			elif len(self.chatPos.neighbours) >= 2:
+				keys = pygame.key.get_pressed()
+				if keys[pygame.K_SPACE]:
+					self.chatPos = self.chatPos.neighbours[self.optionSelect]
+					self.chatNumber = random.randint(0, len(self.chatPos.dialogue) - 1)
+					self.letters = 0
+					self.letterStart = 0
+					self.optionSelect = 0
+					self.textList = []
+					self.textDone = False
+					self.optionDis = False
+				else:
+					if self.cooldown:
+						if pygame.time.get_ticks() - self.cooldown > 250:
+							self.cooldown = False
+					#Move up
+					if keys[pygame.K_w] and self.optionSelect > 0 and not self.cooldown:
+						self.optionSelect -= 1
+						self.cooldown = pygame.time.get_ticks()
+					#Move down
+					if self.optionDis:
+						if keys[pygame.K_s] and self.optionSelect < len(self.optionDis)-1 and not self.cooldown:
+							self.optionSelect += 1
+							self.cooldown = pygame.time.get_ticks()
+					#Creating options
+					self.optionDis = []
+					for n in self.chatPos.neighbours:
+						if n.condition == False:
+							if len(self.optionDis) == self.optionSelect:
+								self.optionDis.append(self.font.render(n.option, False, (255, 0, 0)))
+							else:
+								self.optionDis.append(self.font.render(n.option, False, (255, 255, 255)))
+
 		self.message = self.chatPos.dialogue[self.chatNumber]
 
 
@@ -656,6 +709,7 @@ class Character(pygame.sprite.Sprite):
 		self.health = 100
 		self.invincible = False
 		self.talking = False
+		self.talkCooldown = False
 		self.dead = False
 		self.confirm = False
 		self.revive = False
@@ -701,8 +755,8 @@ class Character(pygame.sprite.Sprite):
 				packet = {"command": "DEATHCONFIRMATION"}
 			elif action == "revived":
 				packet = {"command": "REVCONFIRMATION"}
-			elif action == "talk":
-				packet = {"command": "TALK", "data": {"id": data}}
+			elif action == "talkstop":
+				packet = {"command": "TALKSTOP"}
 			elif action == "revive":
 				packet = {"command": "REVIVAL", "data": {"idList": data}}
 			self.connection.send((json.dumps(packet) + "#").encode())
@@ -797,7 +851,10 @@ class Character(pygame.sprite.Sprite):
 				self.health = 0
 
 	def checkTalk(self, npcs):
-		if not self.talking and not self.dead:
+		if self.talkCooldown:
+			if pygame.time.get_ticks() - self.talkCooldown > 1000:
+				self.talkCooldown = False
+		if not self.talking and not self.dead and not self.talkCooldown:
 			count = 0
 			while count != len(pygame.sprite.Group.sprites(npcs)):
 				npc = pygame.sprite.Group.sprites(npcs)[count]
@@ -811,10 +868,12 @@ class Character(pygame.sprite.Sprite):
 
 	def endTalk(self, serverSide=False):
 		if serverSide:
-			self.talking.removeCustomer(self.connection)
+			self.talking.removeCustomer(self.id)
 			self.talking = False
 		else:
+			self.tell_server("talkstop")
 			self.hud.startAnimation("close")
+		self.talkCooldown = pygame.time.get_ticks()
 
 
 	def die(self, serverSide=False):

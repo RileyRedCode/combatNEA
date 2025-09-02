@@ -2,7 +2,8 @@ import socket, threading, json, time, pygame
 from idlelib.query import Query
 
 from MapGen import MapGenerator, House
-from game_classes import nodeSetup, ServerEnemy, Bullet, Explosion, TILE_SIZE, MAP_WIDTH, SCREEN_SIZE, Character
+from game_classes import nodeSetup, ServerEnemy, Bullet, Explosion, TILE_SIZE, MAP_WIDTH, SCREEN_SIZE, Character, \
+    npcList
 from npcs import Monarch
 
 HOST = '127.0.0.1'
@@ -42,11 +43,8 @@ def recv_from_client(conn,client_list):
                             if enemy.id == packet["data"]["id"]:
                                 enemy.confirm = True
 
-                    if packet["command"] == "TALK":
-                        for npc in serverNPCs:
-                            if npc.id == packet["data"]["id"]:
-                                npc.activity[0] = "talking"
-                                npc.customers.append(client)
+                    if packet["command"] == "TALKSTOP":
+                        players[client].endTalk(True)
 
                     if packet["command"] == "REVIVAL":
                         for p in players:
@@ -82,7 +80,7 @@ def gameLoop(players, serverEnemies, client_list, serverBullets, confirmationLis
             if result:
                 for npc in serverNPCs:
                     if npc == result:
-                        npc.addCustomer(players[player].connection)
+                        npc.addCustomer(players[player].id)
                 packet = {"command": "TALK", "data": {"id": result.id}}
                 send_to_client(client_list, packet, player)
 

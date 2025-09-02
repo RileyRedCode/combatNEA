@@ -80,17 +80,19 @@ class Monarch(NPC):
 		self.dialogue = {"firstMeet":(["Can't say I've seen your visage about these parts before..."], ["choice"]),
 						 "greetings":(["You again?", "Hello again."], ["choice"]),
 						 "choice":(["How may I help you?"],["shopStart", "talk", "end"]),
-						 "shopStart":(["Feast your eyes!", "This could all be yours!"], ["choice"]),
-						 "end":(["Very well", "Goodbye"], []),
-						 "talk":(["We have nothing to talk about"], ["choice"])}
+						 "shopStart":(["Feast your eyes!", "This could all be yours!"], ["choice"], "Shop"),
+						 "end":(["Very well", "Farewell"], [], "Goodbye"),
+						 "talk":(["We have nothing to talk about"], ["choice"], "Chat")}
 
 		self.dialogue = constructDialogue(self.dialogue)
 
 class Vertex:
-	def __init__(self, name, dialogue):
+	def __init__(self, name, dialogue, option = False):
 		self.name = name
 		self.dialogue = dialogue
 		self.neighbours = []
+		self.option = option
+		self.condition = False
 
 	def getValue(self):
 		return self.dialogue
@@ -142,41 +144,19 @@ class DialogueGraph:
 				return v
 		return "Node could not be found"
 
-	def makeNode(self, vertex, dialogue):
-		self.nodes.append(Vertex(vertex, dialogue))
+	def makeNode(self, vertex, dialogue, option = False):
+		self.nodes.append(Vertex(vertex, dialogue, option))
 
 def constructDialogue(dic):
 	d = DialogueGraph()
 	#Creating nodes
 	for key in dic:
-		d.makeNode(key, dic[key][0])
+		option = False
+		if len(dic[key]) == 3:
+			option = dic[key][2]
+		d.makeNode(key, dic[key][0], option)
 	#Creating Edges
 	for key in dic:
 		for e in dic[key][1]:
 			d.makeEdge(key, e)
 	return d
-
-class Button:
-	def __init__(self, x, y, beimage, primage):
-		self.image = beimage
-		self.beimage = beimage
-		self.primage = primage
-		self.rect = self.image.get_rect()
-		self.rect.topleft = (x,y)
-
-	def draw(self,surface):
-		surface.blit(self.image,(self.rect.x,self.rect.y))
-
-	def click(self, surface, x, y):
-		action = False
-		if self.rect.collidepoint((x, y)):
-			action = True
-			self.image = self.primage
-			surface.blit(self.image, (self.rect.x, self.rect.y))
-			pygame.display.flip()
-			time.sleep(0.15)
-			self.image = self.beimage
-			surface.blit(self.image, (self.rect.x, self.rect.y))
-			pygame.display.flip()
-		return action
-
