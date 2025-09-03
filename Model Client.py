@@ -197,8 +197,6 @@ player = characters.sprites()[0]
 packet = {"command":"STARTCONFIRMATION"}
 s.send((json.dumps(packet) + "#").encode())
 while running == True:
-    for npc in npcList:
-        print(npc.customers)
     print(player.mapX, player.mapY)
     SCREEN.fill(WHITE)
     for event in pygame.event.get():
@@ -208,7 +206,7 @@ while running == True:
         if event.type == pygame.KEYDOWN:
             keys = pygame.key.get_pressed()
         if event.type == pygame.MOUSEBUTTONUP:
-            if not pygame.mouse.get_pressed()[0] and event.button == 1 and not player.talking and not player.dead:
+            if not pygame.mouse.get_pressed()[0] and event.button == 1 and not player.talking and not player.dead and not player.paused:
                 coOrds = pygame.mouse.get_pos()
                 player.fire(coOrds)
 
@@ -220,7 +218,9 @@ while running == True:
     player.camera.bulletAdjust(bullets, explosions)
     player.camera.obstacleAdjust(world.obstacleList)
     player.checkRevive(characters)
-    player.hud.talk()
+    player.checkPause()
+    player.hud.animate()
+    player.calcGunAngle()
     # if player.hud.animation:
     #     if player.hud.animation == "open":
     #         player.hud.animateTalk()
@@ -237,6 +237,7 @@ while running == True:
     world.draw(SCREEN)
     explosions.draw(SCREEN)
     npcList.draw(SCREEN)
+    SCREEN.blit(player.gunimg, player.gunRect)
     characters.draw(SCREEN)
     world.obstacleList.draw(SCREEN)
     bullets.draw(SCREEN)

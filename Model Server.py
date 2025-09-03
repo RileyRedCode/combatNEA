@@ -46,6 +46,12 @@ def recv_from_client(conn,client_list):
                     if packet["command"] == "TALKSTOP":
                         players[client].endTalk(True)
 
+                    if packet["command"] == "PAUSE":
+                        players[client].paused = True
+
+                    if packet["command"] == "UNPAUSE":
+                        players[client].paused = False
+
                     if packet["command"] == "REVIVAL":
                         for p in players:
                             if players[p].id in packet["data"]["idList"]:

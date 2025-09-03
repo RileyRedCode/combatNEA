@@ -165,6 +165,18 @@ class Hud:
 		self.continueDis = False
 		self.optionDis = False
 
+		#Menu
+		self.menuBg = pygame.Surface((800, 800), pygame.SRCALPHA)
+		self.menuBg.fill((0, 0, 0, 150))
+		self.menuBgRect = self.menuBg.get_rect()
+		self.menuBgRect.topleft = (0, 800)
+
+		self.menuPos = 0
+		self.menuOptions = ["Resume", "Items"]
+		self.menuTxt = []
+		for op in self.menuOptions:
+			self.menuTxt.append(self.font.render(op, False, (255, 255, 255)))
+
 	'''
 	Name: draw
 	Parameters: screen:rect
@@ -172,8 +184,6 @@ class Hud:
 	Purpose: Displays the Hud
 	'''
 	def draw(self, screen):
-		self.healthCalc(self.owner.health)
-
 		screen.blit(self.background, (TILE_SIZE // 4 + 10, TILE_SIZE // 4 + 10))
 		screen.blit(self.damage,((TILE_SIZE//4) + 10 + (self.displayHealth * 2) - 1, TILE_SIZE//4 + 10))
 		screen.blit(self.heal, ((TILE_SIZE // 4) + 10 + (self.displayHealth * 2) - 1, TILE_SIZE // 4 + 10))
@@ -201,7 +211,13 @@ class Hud:
 					for option in self.optionDis:
 						screen.blit(option, (x, y))
 						y += 45
-
+		if self.owner.paused or self.animation == "menuC":
+			screen.blit(self.menuBg, self.menuBgRect)
+			if not self.animation:
+				x,y = 300, 200
+				for text in self.menuTxt:
+					screen.blit(text, (x, y))
+					y += 60
 		if self.owner.revive:
 			screen.blit(self.revive, self.reviveRect)
 
@@ -219,6 +235,13 @@ class Hud:
 					self.chatNumber = random.randint(0, len(self.chatPos.neighbours)-1)
 		elif type == "close":
 			self.animation = "close"
+
+		elif type == "menu":
+			self.menuBgRect.topleft = (0, 800)
+			self.animation = "menuO"
+		elif type == "menuC":
+			self.animation = "menuC"
+
 
 	def animateTalk(self):
 		increment = 0
@@ -254,7 +277,23 @@ class Hud:
 		if self.speakerRect.x > 800:
 			self.owner.talking = False
 
-	def talk(self):
+	def animateMenu(self, reverse = False):
+		goal = 0
+		if self.menuBgRect.topleft[1] > 500:
+			increment = 50
+		elif self.menuBgRect.topleft[1] > 200:
+			increment = 30
+		else:
+			increment = 20
+		if reverse:
+			increment = increment *-1
+			goal = 800
+		self.menuBgRect.y -= increment
+		if self.menuBgRect.y == goal:
+			self.animation = False
+
+	def animate(self):
+		self.healthCalc(self.owner.health)
 		if self.owner.talking:
 			#animations
 			if self.animation:
@@ -265,9 +304,51 @@ class Hud:
 			else:
 				self.nextDialogue()
 				self.disText()
+		#Paused
+		elif self.owner.paused or self.animation == "menuC":
+			if self.animation == "menuO":
+				self.animateMenu()
+			elif self.animation == "menuC":
+				self.animateMenu(True)
+			else:
+				self.menuTxt, self.menuPos, confirm = self.menu(self.menuTxt, self.menuPos, self.menuOptions)
+				if confirm:
+					if self.menuOptions[self.menuPos] == "Resume":
+						self.startAnimation("menuC")
+						self.owner.tell_server("unpause")
+						self.owner.paused = False
+
+
+	def menu(self, list, position, optionList):
+		keys = pygame.key.get_pressed()
+		#confirm
+		if keys[pygame.K_SPACE]:
+			return list, position, True
+		if self.cooldown:
+			if pygame.time.get_ticks() - self.cooldown > 250:
+				self.cooldown = False
+		# Move up
+		if keys[pygame.K_w] and position > 0 and not self.cooldown:
+			position -= 1
+			self.cooldown = pygame.time.get_ticks()
+		# Move down
+		if list:
+			if keys[pygame.K_s] and position < len(list) - 1 and not self.cooldown:
+				position += 1
+				self.cooldown = pygame.time.get_ticks()
+		# Creating options
+		list = []
+		for i in optionList:
+			if len(list) == position:
+				list.append(self.font.render(i, False, (255, 0, 0)))
+			else:
+				list.append(self.font.render(i, False, (255, 255, 255)))
+		return list, position, False
+
 
 	def nextDialogue(self):
 		if self.textDone:
+			#Handles starting new dialogue if there is only 1 option in the dialogue graph
 			if len(self.chatPos.neighbours) <= 1:
 				keys = pygame.key.get_pressed()
 				if keys[pygame.K_SPACE]:
@@ -283,10 +364,17 @@ class Hud:
 					self.textDone = False
 				else:
 					self.continueDis = True
-
+			# Handles starting new dialogue if there is more than 1 option
 			elif len(self.chatPos.neighbours) >= 2:
-				keys = pygame.key.get_pressed()
-				if keys[pygame.K_SPACE]:
+
+				list = []
+				for n in self.chatPos.neighbours:
+					if n.condition == False:
+						list.append(n.option)
+				self.optionDis, self.optionSelect, confirm = self.menu(self.optionDis, self.optionSelect, list)
+
+				#Moves to next dialogue
+				if confirm:
 					self.chatPos = self.chatPos.neighbours[self.optionSelect]
 					self.chatNumber = random.randint(0, len(self.chatPos.dialogue) - 1)
 					self.letters = 0
@@ -295,27 +383,6 @@ class Hud:
 					self.textList = []
 					self.textDone = False
 					self.optionDis = False
-				else:
-					if self.cooldown:
-						if pygame.time.get_ticks() - self.cooldown > 250:
-							self.cooldown = False
-					#Move up
-					if keys[pygame.K_w] and self.optionSelect > 0 and not self.cooldown:
-						self.optionSelect -= 1
-						self.cooldown = pygame.time.get_ticks()
-					#Move down
-					if self.optionDis:
-						if keys[pygame.K_s] and self.optionSelect < len(self.optionDis)-1 and not self.cooldown:
-							self.optionSelect += 1
-							self.cooldown = pygame.time.get_ticks()
-					#Creating options
-					self.optionDis = []
-					for n in self.chatPos.neighbours:
-						if n.condition == False:
-							if len(self.optionDis) == self.optionSelect:
-								self.optionDis.append(self.font.render(n.option, False, (255, 0, 0)))
-							else:
-								self.optionDis.append(self.font.render(n.option, False, (255, 255, 255)))
 
 		self.message = self.chatPos.dialogue[self.chatNumber]
 
@@ -329,6 +396,7 @@ class Hud:
 			self.text = self.font.render(self.message[self.letterStart:self.letters], False, (255, 255, 255))
 		else:
 			self.textDone = True
+
 
 	'''
 	Name: healthCalc
@@ -713,6 +781,11 @@ class Character(pygame.sprite.Sprite):
 		self.dead = False
 		self.confirm = False
 		self.revive = False
+		self.paused = False
+		self.gunOrig = pygame.image.load("Assets/gun.png")
+		self.gunOrig = pygame.transform.scale(self.gunOrig, (96,64))
+		self.gunimg = self.gunOrig
+		self.gunRect = self.gunimg.get_rect()
 
 	'''
 	Name: fire
@@ -757,6 +830,10 @@ class Character(pygame.sprite.Sprite):
 				packet = {"command": "REVCONFIRMATION"}
 			elif action == "talkstop":
 				packet = {"command": "TALKSTOP"}
+			elif action == "pause":
+				packet = {"command": "PAUSE"}
+			elif action == "unpause":
+				packet = {"command": "UNPAUSE"}
 			elif action == "revive":
 				packet = {"command": "REVIVAL", "data": {"idList": data}}
 			self.connection.send((json.dumps(packet) + "#").encode())
@@ -770,7 +847,7 @@ class Character(pygame.sprite.Sprite):
 	multiple directions it will lower the velocity. 
 	'''
 	def move(self, obstacles):
-		if not self.talking and not self.dead:
+		if not self.talking and not self.dead and not self.paused:
 			keys = pygame.key.get_pressed()
 			velocity = 6
 			if keys[pygame.K_d] == True:#Account for diagonal speed
@@ -854,7 +931,7 @@ class Character(pygame.sprite.Sprite):
 		if self.talkCooldown:
 			if pygame.time.get_ticks() - self.talkCooldown > 1000:
 				self.talkCooldown = False
-		if not self.talking and not self.dead and not self.talkCooldown:
+		if not self.talking and not self.dead and not self.talkCooldown and not self.paused:
 			count = 0
 			while count != len(pygame.sprite.Group.sprites(npcs)):
 				npc = pygame.sprite.Group.sprites(npcs)[count]
@@ -891,7 +968,7 @@ class Character(pygame.sprite.Sprite):
 		checked = False
 		reviveList = []
 		for player in players:
-			if player != self and player.dead and not self.talking and not self.dead:
+			if player != self and player.dead and not self.talking and not self.dead and not self.paused:
 				distance = math.sqrt(((player.mapX - self.mapX) ** 2) + ((player.mapY - self.mapY) ** 2))
 				if distance < 70:
 					self.revive = True
@@ -913,6 +990,39 @@ class Character(pygame.sprite.Sprite):
 		self.dead = False
 		self.image = self.aliveImage
 
+	def checkPause(self):
+		keys = pygame.key.get_pressed()
+		if keys[pygame.K_ESCAPE]:
+			if not self.talking and not self.paused:
+				self.hud.startAnimation("menu")
+				self.paused = True
+				self.tell_server("pause")
+
+	def calcGunAngle(self):
+		lastPos = self.gunRect.center
+		try:
+			mouse = pygame.mouse.get_pos()
+			adjacent = mouse[0]-self.rect.centerx
+			opposite = mouse[1]-self.rect.centery
+			angle = math.degrees(math.atan2(opposite, adjacent))
+
+			self.gunimg = pygame.transform.rotate(self.gunOrig, -angle)
+			self.gunRect = self.gunimg.get_rect()
+
+			x = self.rect.centerx + 50 * math.cos(math.radians(angle))
+			y = self.rect.centery + 50 * math.sin(math.radians(angle))
+
+			self.gunRect.center  = (x,y)
+		except:
+			print("exception")
+			self.gunRect.center = lastPos
+
+class Gun:
+	def __init__(self, image, damage):
+		self.origImage = image
+		self.image = image
+		self.rect = image.get_rect
+		self.damage = damage
 
 '''
 Name: priorityQueue
