@@ -1112,8 +1112,8 @@ class Enemy(pygame.sprite.Sprite):
 		self.image = pygame.transform.scale(self.image,(self.width,self.height))
 		self.rect = self.image.get_rect()
 		self.rect.center = ((SCREEN_SIZE[0]//2)-1, (SCREEN_SIZE[1]//2)-1)
-		self.mapX = 1000 + x
-		self.mapY = 1000 + y
+		self.mapX = 1000
+		self.mapY = 1000
 		self.direction = "UP"
 		self.startTime = False
 		self.id = id
@@ -1240,8 +1240,8 @@ class ServerEnemy:
 	def __init__(self, x, y):
 		self.width = TILE_SIZE
 		self.height = TILE_SIZE
-		self.mapX = 1000 + x
-		self.mapY = 1000 + y
+		self.mapX = x
+		self.mapY = y
 		self.startTime = False
 		self.health = 100
 		self.id = ServerEnemy.idcount

@@ -1,6 +1,6 @@
 import pygame, random, time
-from game_classes import TILE_SIZE
 
+TILE_SIZE = 40
 class NPC(pygame.sprite.Sprite):
 	#class variables
 	idcount = 0

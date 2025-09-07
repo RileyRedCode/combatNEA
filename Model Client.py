@@ -1,6 +1,6 @@
 import pygame, random, socket, threading, json, math
-from game_classes import SCREEN_SIZE, TILE_SIZE, obstacleList, npcList, enemyList, bullets, characters, explosions, Wall, \
-    Character, Bullet, World, Enemy, nodeSetup
+from game_classes import SCREEN_SIZE, obstacleList, npcList, enemyList, bullets, characters, explosions, Wall, \
+    Character, Bullet, World, Enemy, nodeSetup, TILE_SIZE
 from game_classes import WHITE, BLACK
 from npcs import Monarch
 
@@ -8,26 +8,7 @@ HOST = '127.0.0.1'
 PORT = 50000
 obstacles = []
 textMap = []
-MAP = ["00000000000000000000",
-       "01111111111111111110",
-       "01000000000000000010",
-       "01000000000000000010",
-       "01000000000000000010",
-       "01000000000000000010",
-       "01000000000000000010",
-       "01000000000000000010",
-       "01000000000000000010",
-       "01000000000000000010",
-       "01000000000000000010",
-       "01000000000000000010",
-       "01000000000000000010",
-       "01000000000000000010",
-       "010000000C0000000010",
-       "01000000000000000010",
-       "01000000000000000010",
-       "01000000000000000010",
-       "01000111111111111110",
-       "00000000000000000000"]
+
 Waiting = True
 def recv_from_server(conn):
     global Waiting
@@ -73,8 +54,9 @@ def recv_from_server(conn):
                     if npc.id == packet["data"]["id"]:
                         player.talking = npc
                         player.hud.startAnimation("open", player.talking)
-
                         npc.addCustomer(player.id)
+                        if not npc.firstChat:
+                            npc.firstChat = True
 
 
             if packet["command"] == "ENEMIES":

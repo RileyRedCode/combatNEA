@@ -1,6 +1,6 @@
-import random, pygame
+import random, pygame, math
 from xml.etree.ElementTree import XMLParser
-
+from npcs import Monarch
 from PIL import Image
 
 #Need to program linear search to ensure no conflicts slip through, need to guranatee all biomes, DEEP WATER increase likelihood?
@@ -65,6 +65,7 @@ class MapGenerator:
                       "Forest":{"Plains":0, "Mountain":0, "HMountain":1, "Forest":0, "Water":1, "DWater":1, False:0},
                       "Water":{"Plains":0, "Mountain":1, "HMountain":1, "Forest":1, "Water":0, "DWater":0, False:0},
                       "DWater":{"Plains":1, "Mountain":1, "HMountain":1, "Forest":1, "Water":0, "DWater":0, False:0}}
+        self.NPCs = pygame.sprite.Group()
         if not textMap:
             self.textMap = [[False for count in range(self.mapWidth)] for i in range(self.mapWidth)]#Establishes a plain map
         else:
@@ -139,7 +140,8 @@ class MapGenerator:
             success = self.biomeCheck()
             if not success:#Clears map so that the algorithm can retry
                 self.clearMap()
-        return self.textMap
+        self.obstacleGen()
+        return self.textMap, self.obstacles, self.NPCs
 
     def checkProbability(self, x, y):#Gets a pool of probabilities
         area = 3
@@ -184,22 +186,37 @@ class MapGenerator:
         self.imgMap.save("map.png")
 
     def obstacleGen(self):
+        used = []
+        c = 0
+        for count in range(3):
+            x = random.randint(0, self.mapWidth-1)
+            y = random.randint(0, self.mapWidth-1)
+            while self.textMap[y][x] != "DWater" and self.textMap[y][x] != "Water":
+                x = random.randint(0, self.mapWidth - 1)
+                y = random.randint(0, self.mapWidth - 1)
+            self.NPCs.add(Monarch((x * TERRAIN_SIZE[0]) + (TILE_SIZE * 8),
+                                  (y * TERRAIN_SIZE[1]) + (TILE_SIZE * 8)))
+            self.obstacles.append((((x * TERRAIN_SIZE[0]), (y * TERRAIN_SIZE[1]), self.NPCs.sprites()[c].id), "House"))
+            c += 1
+            used.append((x, y))
         for count in range(self.mapWidth//2):
             ranX = random.randint(0, self.mapWidth-1)
             ranY = random.randint(0, self.mapWidth-1)
-            while  self.textMap[ranY][ranX] != "Plains":
+            while  self.textMap[ranY][ranX] != "Plains" or (ranX, ranY) in used:
                 ranX = random.randint(0, self.mapWidth - 1)
                 ranY = random.randint(0, self.mapWidth - 1)
-            ranX = (0*TERRAIN_SIZE[0])+TERRAIN_SIZE[0]//2
+            ranX = ranX*TERRAIN_SIZE[0]+TERRAIN_SIZE[0]//2
             ranY = ranY*TERRAIN_SIZE[0]+TERRAIN_SIZE[0]//2
-            self.obstacles.append(["Grave", ranX, ranY])
+            self.obstacles.append(((ranX, ranY), "Grave"))
         return self.obstacles
 
     def createObstacles(self):
         self.obstacleList = pygame.sprite.Group()
         for obstacle in self.obstacles:
-            if obstacle[1] == "house":
+            if obstacle[1] == "House":
                 self.obstacleList.add(House(*obstacle[0]))
+            elif obstacle[1] == "Grave":
+                self.obstacleList.add(Grave(*obstacle[0]))
 
     def finalise(self):
         self.text2Tile()
@@ -242,8 +259,9 @@ class Tile:
         self.img = BIOME_IMGS[biome]
 
 class Obstacle(pygame.sprite.Sprite):
-    def __init__(self, x, y, width, height, image):
+    def __init__(self, x, y, width, height, image, name):
         super().__init__()
+        self.type = name
         self.mapX = x
         self.mapY = y
         self.width = width
@@ -258,8 +276,25 @@ class Obstacle(pygame.sprite.Sprite):
 
 class House(Obstacle):
     def __init__(self, x, y, owner):
-        super().__init__(x, y, TILE_SIZE*8, TILE_SIZE*8, "Assets/house.png")
+        super().__init__(x + TILE_SIZE*4, y + TILE_SIZE*4, TILE_SIZE*8, TILE_SIZE*8, "Assets/house.png", "House")
         self.owner = owner
+
+class Grave(Obstacle):
+    def __init__(self, x, y):
+        super().__init__(x, y, TILE_SIZE, TILE_SIZE, "Assets/skull.png", "Grave")
+        self.lastSpawn = pygame.time.get_ticks()
+
+    def checkSpawn(self, playerPos):
+        close = False
+        for pos in playerPos:
+            hypotenuse = math.sqrt(((pos[0] - self.mapX)**2) + ((pos[1] - self.mapY)**2))
+            if hypotenuse < 600:
+                close = True
+        if close:
+            if pygame.time.get_ticks() - self.lastSpawn > 2000:
+                self.lastSpawn = pygame.time.get_ticks()
+                return self.mapX + TILE_SIZE + (TILE_SIZE//2), self.mapY +TILE_SIZE+ (TILE_SIZE//2)
+        return False
 
 
 
