@@ -205,9 +205,22 @@ class MapGenerator:
             while  self.textMap[ranY][ranX] != "Plains" or (ranX, ranY) in used:
                 ranX = random.randint(0, self.mapWidth - 1)
                 ranY = random.randint(0, self.mapWidth - 1)
+            used.append((ranX, ranY))
             ranX = ranX*TERRAIN_SIZE[0]+TERRAIN_SIZE[0]//2
             ranY = ranY*TERRAIN_SIZE[0]+TERRAIN_SIZE[0]//2
             self.obstacles.append(((ranX, ranY), "Grave"))
+
+        for count in range(self.mapWidth//2):
+            ranX = random.randint(0, self.mapWidth-1)
+            ranY = random.randint(0, self.mapWidth-1)
+            while  self.textMap[ranY][ranX] != "Forest" or (ranX, ranY) in used:
+                ranX = random.randint(0, self.mapWidth - 1)
+                ranY = random.randint(0, self.mapWidth - 1)
+            num = random.randint(1,2)
+            for count in range(0, num):
+                ranXo = ranX*TERRAIN_SIZE[0]+((TERRAIN_SIZE[0]//3) * random.randint(1,2))
+                ranYo = ranY*TERRAIN_SIZE[0]+((TERRAIN_SIZE[0]//3) * random.randint(1,2))
+                self.obstacles.append(((ranXo, ranYo), "Bush"))
         return self.obstacles
 
     def createObstacles(self):
@@ -217,6 +230,8 @@ class MapGenerator:
                 self.obstacleList.add(House(*obstacle[0]))
             elif obstacle[1] == "Grave":
                 self.obstacleList.add(Grave(*obstacle[0]))
+            elif obstacle[1] == "Bush":
+                self.obstacleList.add(Bush(*obstacle[0]))
 
     def finalise(self):
         self.text2Tile()
@@ -295,6 +310,10 @@ class Grave(Obstacle):
                 self.lastSpawn = pygame.time.get_ticks()
                 return self.mapX + TILE_SIZE + (TILE_SIZE//2), self.mapY +TILE_SIZE+ (TILE_SIZE//2)
         return False
+
+class Bush(Obstacle):
+    def __init__(self, x, y):
+        super().__init__(x, y, TILE_SIZE, TILE_SIZE, "Assets/bush.png", "Bush")
 
 
 

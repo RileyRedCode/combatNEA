@@ -568,7 +568,7 @@ class Bullet(pygame.sprite.Sprite):
 	Purpose: This increments the x and y co-ordinates as well as checking if the bullet has collided. If the bullet has
 	passed the edge of the map or collided it will kill itself
 	'''
-	def update(self, enemyList, serverSide=False):
+	def update(self, enemyList, obstacleList, serverSide=False):
 		self.mapX += self.direction[0]
 		self.mapY += self.direction[1]
 		for enemy in enemyList:
@@ -581,27 +581,11 @@ class Bullet(pygame.sprite.Sprite):
 					bullets.remove(self)
 					self.kill()
 
-		if self.mapY < 0 or self.mapY> MAP_RES[1] or self.mapX< 0 or self.mapX > MAP_RES[0]:#If outside the map
-			if serverSide:
-				return False, "kill"
-
-			else:
-				bullets.remove(self)
-				self.kill()
-
-		return False, None
-
-	def collisionCheck(self, enemyList, serverSide=False):
-		for enemy in enemyList:
-			# print(self.mapX - 2, self.mapX + 2, self.mapY - 2, self.mapY + 2,
-			# 				  enemy.mapX - (enemy.width//2), enemy.mapX + (enemy.width//2), enemy.mapY - (enemy.height//2), enemy.mapY + (enemy.height//2))
-			# print(checkCollision(self.mapX - 2, self.mapX + 2, self.mapY - 2, self.mapY + 2,
-			# 				  enemy.mapX - (enemy.width//2), enemy.mapX + (enemy.width//2), enemy.mapY - (enemy.height//2), enemy.mapY + (enemy.height//2)))
+		for obstacle in obstacleList:
 			if checkCollision(self.mapX - 2, self.mapX + 2, self.mapY - 2, self.mapY + 2,
-							  enemy.mapX - (enemy.width//2), enemy.mapX + (enemy.width//2), enemy.mapY - (enemy.height//2), enemy.mapY + (enemy.height//2)):
+							  obstacle.mapX - (obstacle.width//2), obstacle.mapX + (obstacle.width//2), obstacle.mapY - (obstacle.height//2), obstacle.mapY + (obstacle.height//2)):
 				if serverSide:
-					return True, enemy
-
+					return False, "kill"
 				else:
 					bullets.remove(self)
 					self.kill()
@@ -615,8 +599,6 @@ class Bullet(pygame.sprite.Sprite):
 				self.kill()
 
 		return False, None
-		
-
 
 '''
 Name: Explosion
@@ -783,7 +765,6 @@ class Character(pygame.sprite.Sprite):
 		self.revive = False
 		self.paused = False
 		self.gunOrig = pygame.image.load("Assets/gun.png")
-		self.gunOrig = pygame.transform.scale(self.gunOrig, (96,64))
 		self.gunimg = self.gunOrig
 		self.gunRect = self.gunimg.get_rect()
 
@@ -1111,9 +1092,9 @@ class Enemy(pygame.sprite.Sprite):
 		self.image_orig = pygame.transform.scale(self.image_orig, (self.width, self.height))
 		self.image = pygame.transform.scale(self.image,(self.width,self.height))
 		self.rect = self.image.get_rect()
-		self.rect.center = ((SCREEN_SIZE[0]//2)-1, (SCREEN_SIZE[1]//2)-1)
-		self.mapX = 1000
-		self.mapY = 1000
+		self.rect.center = 1000, 1000
+		self.mapX = x
+		self.mapY = y
 		self.direction = "UP"
 		self.startTime = False
 		self.id = id

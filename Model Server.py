@@ -1,9 +1,9 @@
 import socket, threading, json, time, pygame
 from idlelib.query import Query
 
-from MapGen import MapGenerator, House, Grave
+from MapGen import MapGenerator, House, Grave, Bush
 from game_classes import nodeSetup, ServerEnemy, Bullet, Explosion, TILE_SIZE, MAP_WIDTH, SCREEN_SIZE, Character, \
-    npcList
+    npcList, obstacleList
 from npcs import Monarch
 
 HOST = '127.0.0.1'
@@ -92,7 +92,7 @@ def gameLoop(players, serverEnemies, client_list, serverBullets, confirmationLis
 
 
         for bullet in serverBullets:#NOTE IDEA what if I grouped this into a list of enemies taking damage rather than individual messages
-            result = bullet.collisionCheck(serverEnemies, True)
+            result = bullet.update(serverEnemies, serverObstacles, True)
             if result[0]:#If the bullet has collided
                 result[1].takeDamage(bullet.damage)
                 packet  = {"command":"ENEMYDAMAGE","data":{"id":result[1].id, "amount":bullet.damage}}
@@ -102,9 +102,7 @@ def gameLoop(players, serverEnemies, client_list, serverBullets, confirmationLis
             elif result[1] == "kill":
                 serverBullets.remove(bullet)
                 bullet.kill()
-            else:
-                bullet.mapX += bullet.direction[0]
-                bullet.mapY += bullet.direction[1]
+
 
         packet = {"command": "EXPLOSIONDAMAGE", "data": []}
         for explosion in serverExplosions:
@@ -139,7 +137,8 @@ def gameLoop(players, serverEnemies, client_list, serverBullets, confirmationLis
         packet = {"command": "ENEMIES", "data": []}
         playerPos = []
         for player in players:
-            playerPos.append([players[player].mapX, players[player].mapY])
+            if not players[player].dead:
+                playerPos.append([players[player].mapX, players[player].mapY])
         for ob in serverObstacles:
             if ob.type == "Grave":
                 data = ob.checkSpawn(playerPos)
@@ -171,7 +170,6 @@ def gameLoop(players, serverEnemies, client_list, serverBullets, confirmationLis
                 elif action[1] == "ENEMYDIE":
                     packet["data"].append({"id":action[0], "action": "DIE"})
         send_to_client(client_list, packet)
-
         clock.tick(60)
 
 #Player and connections
@@ -192,10 +190,12 @@ print(serverNPCs)
 # obstacles = [((2000, 1000, False), "house")]#mapGen.obstacleGen()
 serverObstacles = []
 for obstacle in obstacles:
-    if obstacle[1] == "house":
-        serverObstacles.append(House(*obstacle[0]))
+    if obstacle[1] == "House":
+        serverObstacles.append(House(obstacle[0][0], obstacle[0][1], serverNPCs.sprites()[obstacle[0][2]]))
     elif obstacle[1] == "Grave":
         serverObstacles.append(Grave(*obstacle[0]))
+    elif obstacle[1] == "Bush":
+        serverObstacles.append(Bush(*obstacle[0]))
 serverNodes = [[False for count in range(MAP_WIDTH*(SCREEN_SIZE[1]//TILE_SIZE))] for i in range(MAP_WIDTH*(SCREEN_SIZE[0]//TILE_SIZE))]
 #this * unpacks the elements
 serverNodes = nodeSetup(serverObstacles, serverNodes)
@@ -265,13 +265,13 @@ while True:
     time.sleep(1)
 
 
-    # for count in range(len(textMap)):
-    # 	if count == len(textMap)-1:
-    # 		message = {"command":"MAP", "data":{"Count":"FINAL", "List":textMap[count]}}
-    # 	else:
-    # 		message = {"command": "MAP", "data": {"Count": count, "List": textMap[count]}}
-    # 	conn.send(json.dumps(message).encode())
-    # 	time.sleep(1)
+    for count in range(len(textMap)):
+        if count == len(textMap)-1:
+            message = {"command":"MAP", "data":{"Count":"FINAL", "List":textMap[count]}}
+        else:
+            message = {"command": "MAP", "data": {"Count": count, "List": textMap[count]}}
+        conn.send(json.dumps(message).encode())
+        time.sleep(1)
     if len(client_list) == 2:
         threading.Thread(target=gameLoop, args=(players, serverEnemies, client_list, serverBullets, confirmationList)).start()
         message = {"command": "START"}
