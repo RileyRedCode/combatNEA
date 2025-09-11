@@ -68,7 +68,7 @@ def send_to_client(client_list, packet, identity=False):
         for client in client_list:
             client.send((json.dumps(packet) + "#").encode())
 
-def gameLoop(players, serverEnemies, client_list, serverBullets, confirmationList):
+def gameLoop(players, serverEnemies, client_list, confirmationList):
     game = False
     while not game:
         game = True
@@ -140,6 +140,7 @@ def gameLoop(players, serverEnemies, client_list, serverBullets, confirmationLis
         # Determining the action for each enemy
         enemyActions = []
         for enemy in serverEnemies:
+            print(enemy.health)
             path = enemy.locate(players, serverNodes)
             enemyActions.append(enemy.travel(path))
             if ((pygame.time.get_ticks() - enemy.startTime >= 200 and enemy.startTime) or (enemy.health <= 0 and enemy.confirm)):
@@ -173,7 +174,6 @@ player_positions = [(1000,1000),(1000,1000)]
 mapGen = MapGenerator()
 textMap, obstacles, serverNPCs = mapGen.generate()
 print(obstacles)
-print(serverNPCs)
 
 # obstacles = [((2000, 1000, False), "house")]#mapGen.obstacleGen()
 serverObstacles = []
@@ -261,7 +261,7 @@ while True:
         conn.send(json.dumps(message).encode())
         time.sleep(1)
     if len(client_list) == 2:
-        threading.Thread(target=gameLoop, args=(players, serverEnemies, client_list, serverBullets, confirmationList)).start()
+        threading.Thread(target=gameLoop, args=(players, serverEnemies, client_list, confirmationList)).start()
         message = {"command": "START"}
 
         for c in client_list:

@@ -68,7 +68,7 @@ def recv_from_server(conn):
                 playerTwo.mapY = packet["data"]["yPos"]
 
             if packet["command"] == "PROJECTILE":
-                playerTwo.fire((packet["data"]["start"], packet["data"]["increment"]))
+                playerTwo.fire((packet["data"]["start"], packet["data"]["bulletList"], packet["data"]["angle"]))
 
             if packet["command"] == "ENEMYDAMAGE":
                 for enemy in enemyList:
@@ -177,11 +177,7 @@ count = 0
 
 player = characters.sprites()[0]
 for p in characters:
-    if p == player:
-        owner = p
-    else:
-        owner = False
-    p.inventory.append(Shotgun(owner))
+    p.inventory.append(Shotgun(p))
     p.activeWeapon = p.inventory[0]
 
 packet = {"command":"STARTCONFIRMATION"}
@@ -233,7 +229,10 @@ while running == True:
     world.obstacleList.draw(SCREEN)
     bullets.draw(SCREEN)
     enemyList.draw(SCREEN)
-    player.activeWeapon.draw(SCREEN)
+    for p in characters:
+        if p != player:
+            print(p.activeWeapon.rect.center)
+        p.activeWeapon.draw(SCREEN)
     player.hud.draw(SCREEN)
     clock.tick(60)
     pygame.display.update()

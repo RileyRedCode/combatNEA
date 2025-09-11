@@ -547,7 +547,7 @@ class Bullet(pygame.sprite.Sprite):
 	Purpose: This constructs the bullet. It takes in the direction of the bullet as a vector so it knows how much to
 	increment the x and y coordinates by.
 	'''
-	def __init__(self,x,y,direction, owner):
+	def __init__(self,x,y,direction, owner, damage):
 		super().__init__()
 		self.width = 5
 		self.height = 5
@@ -559,7 +559,7 @@ class Bullet(pygame.sprite.Sprite):
 		self.mapX = x
 		self.mapY = y
 		self.direction = direction
-		self.damage = 5
+		self.damage = damage
 		self.owner = owner
 
 	'''
@@ -770,14 +770,17 @@ class Character(pygame.sprite.Sprite):
 	'''
 	def fire(self, data=False):
 		if not data:
-			start, increment = self.activeWeapon.fire()
-			self.tell_server("projectile", (start, increment))
+			angle = self.activeWeapon.calcGunAngle()
+			start, bulletList = self.activeWeapon.fire()
+			self.tell_server("projectile", (start, bulletList, angle))
 			owner = True
 		else:
 			start = data[0]
-			increment = data[1]
+			bulletList = data[1]
 			owner = False
-		bullets.add(Bullet(start[0], start[1], increment, owner))
+			self.activeWeapon.calcGunAngle(data[2])
+		for bullet in bulletList:
+			bullets.add(Bullet(start[0], start[1], bullet, owner, self.activeWeapon.damage))
 
 	'''
 	Name: tell_server
@@ -791,7 +794,7 @@ class Character(pygame.sprite.Sprite):
 			if action == "move":
 				packet = {"command":"MOVE","data":{"xPos":self.mapX, "yPos":self.mapY}}
 			elif action == "projectile":
-				packet = {"command": "PROJECTILE", "data": {"start":data[0], "increment":data[1]}}
+				packet = {"command": "PROJECTILE", "data": {"start":data[0], "bulletList":data[1], "angle":data[2]}}
 			elif action == "hit":
 				packet = {"command": "ENEMYHIT", "data": {"id": data[0], "damage": data[1]}}
 			elif action == "kill":
@@ -970,35 +973,6 @@ class Character(pygame.sprite.Sprite):
 				self.paused = True
 				self.tell_server("pause")
 
-	def calcGunAngle(self):
-		lastPos = self.gunRect.center
-		try:
-			mouse = pygame.mouse.get_pos()
-			adjacent = mouse[0]-self.rect.centerx
-			opposite = mouse[1]-self.rect.centery
-			angle = math.degrees(math.atan2(opposite, adjacent))
-
-			self.gunimg = pygame.transform.rotate(self.gunOrig, -angle)
-			self.gunRect = self.gunimg.get_rect()
-
-			x = self.rect.centerx + 50 * math.cos(math.radians(angle))
-			y = self.rect.centery + 50 * math.sin(math.radians(angle))
-
-			self.gunRect.center  = (x,y)
-
-			self.dot = pygame.surface.Surface((5, 5))
-			self.dot.fill((255,0 , 0))
-			pygame.draw.rect(self.dot, (255, 0, 0), (0, 0, 5, 5))
-			self.dotrect = self.dot.get_rect()
-			angle -= 7
-			x = self.rect.centerx + 50 * math.cos(math.radians(angle))
-			y = self.rect.centery + 50 * math.sin(math.radians(angle))
-			self.dotrect.center = (x,y)
-
-		except:
-			print("exception")
-			self.gunRect.center = lastPos
-
 class Gun(pygame.sprite.Sprite):
 	def __init__(self, image, damage, owner, offset, cooldown, resize = False):
 		super().__init__()
@@ -1017,14 +991,15 @@ class Gun(pygame.sprite.Sprite):
 		self.offset = offset#(Used to reposition gun for facing, used for calculating the distance the center should be away from the player, used for determining the barrels position)
 		self.trajectory = (0, 0)
 
-	def calcGunAngle(self):
+	def calcGunAngle(self, angle= False):
 		lastPos = (self.rect.center)
 		try:
-			mouse = pygame.mouse.get_pos()
-			adjacent = mouse[0] - self.owner.rect.centerx
-			opposite = mouse[1] - self.owner.rect.centery
+			if not angle:
+				mouse = pygame.mouse.get_pos()
+				adjacent = mouse[0] - self.owner.rect.centerx
+				opposite = mouse[1] - self.owner.rect.centery
 
-			angle = math.degrees(math.atan2(opposite, adjacent))
+				angle = math.degrees(math.atan2(opposite, adjacent))
 
 			#Offsets the angle so the gun faces the cursor
 			angle += self.offset[0]
@@ -1045,7 +1020,6 @@ class Gun(pygame.sprite.Sprite):
 			x = self.owner.rect.centerx + self.offset[1] * math.cos(math.radians(angle+2))
 			y = self.owner.rect.centery + self.offset[1] * math.sin(math.radians(angle+2))
 			self.barrel = (x, y)
-			print(self.rect.center, self.barrel)
 			x = self.owner.mapX + self.offset[1] * math.cos(math.radians(angle))
 			y = self.owner.mapY + self.offset[1] * math.sin(math.radians(angle))
 			self.barrelMap = (x, y)
@@ -1053,6 +1027,8 @@ class Gun(pygame.sprite.Sprite):
 			x = self.owner.rect.centerx + 150 * math.cos(math.radians(angle+2))
 			y = self.owner.rect.centery + 150 * math.sin(math.radians(angle+2))
 			self.trajectory = (x, y)
+
+			return angle
 
 		except:
 			print("exception")
@@ -1064,10 +1040,12 @@ class Gun(pygame.sprite.Sprite):
 		hypotenuse = math.sqrt((increment[0] ** 2) + (increment[1] ** 2))
 		#Divides hypotenuse to work out the amount of seconds it would take to reach the mouse
 		seconds = hypotenuse / 10
+		bulletList = []
 		for count in range(2):
 			increment[count] = increment[count] * -1
 			increment[count] = increment[count] / seconds #divides the length of the distance by the number of seconds to get the distance per second
-		return self.barrelMap, increment
+		bulletList.append(increment)
+		return self.barrelMap, bulletList
 
 	def draw(self, screen):
 		screen.blit(self.image, self.rect)
@@ -1079,6 +1057,24 @@ class Pistol(Gun):
 class Shotgun(Gun):
 	def __init__(self, owner):
 		super().__init__("Assets/shotgun.png", 4, owner, (4, 110, 65), 100, (110, 40))
+
+	def fire(self):
+		#calculates the increment
+		increment = [self.barrel[0] - self.trajectory[0], self.barrel[1] - self.trajectory[1]]
+		hypotenuse = math.sqrt((increment[0] ** 2) + (increment[1] ** 2))
+		#Divides hypotenuse to work out the amount of seconds it would take to reach the mouse
+		seconds = hypotenuse / 10
+		bulletList = []
+		for count in range(2):
+			increment[count] = increment[count] * -1
+			increment[count] = increment[count] / seconds #divides the length of the distance by the number of seconds to get the distance per second
+		for count in range(6):
+			bulletList.append([])
+			for i in increment:
+				alter = random.randint(-4, 4)
+				bulletList[-1].append(i+alter)
+
+		return self.barrelMap, bulletList
 
 '''
 Name: priorityQueue
@@ -1335,6 +1331,21 @@ class ServerEnemy:
 			solution = False
 			X = int(self.mapX//TILE_SIZE)#Need the location of the enemy in reference to Nodes
 			Y = int(self.mapY//TILE_SIZE)
+			if not serverNodes[Y][X]:
+				count = 0
+				flip = False
+				while not serverNodes[Y][X]:
+					if count < 2:
+						if not flip:
+							X -= 1
+							count += 1
+						elif flip:
+							Y -= 1
+							count += 1
+					else:
+						count = 0
+						flip = not flip
+
 			paths.enqueue([serverNodes[Y][X], 0, math.sqrt(((serverNodes[Y][X].mapX - target.mapX)**2)+((serverNodes[Y][X].mapY - target.mapY)**2)), []])#This is the start node
 			visited = []
 			while not solution:
