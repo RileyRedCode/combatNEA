@@ -24,8 +24,10 @@ def recv_from_client(conn,client_list):
                     if packet["command"] == "MOVE":
                         players[conn].mapX, players[conn].mapY = packet["data"]["xPos"], packet["data"]["yPos"]
 
-                    if packet["command"] == "PROJECTILE":
-                        serverBullets.add(Bullet(packet["data"]["xPos"], packet["data"]["yPos"], packet["data"]["coOrds"]))
+                    if packet["command"] == "ENEMYHIT":
+                        for enemy in serverEnemies:
+                            if enemy.id == packet["data"]["id"]:
+                                enemy.takeDamage(packet["data"]["damage"])
 
                     if packet["command"] == "STARTCONFIRMATION":
                         for c in confirmationList:
@@ -89,20 +91,6 @@ def gameLoop(players, serverEnemies, client_list, serverBullets, confirmationLis
                         npc.addCustomer(players[player].id)
                 packet = {"command": "TALK", "data": {"id": result.id}}
                 send_to_client(client_list, packet, player)
-
-
-        for bullet in serverBullets:#NOTE IDEA what if I grouped this into a list of enemies taking damage rather than individual messages
-            result = bullet.update(serverEnemies, serverObstacles, True)
-            if result[0]:#If the bullet has collided
-                result[1].takeDamage(bullet.damage)
-                packet  = {"command":"ENEMYDAMAGE","data":{"id":result[1].id, "amount":bullet.damage}}
-                send_to_client(client_list, packet)
-                serverBullets.remove(bullet)
-                bullet.kill()
-            elif result[1] == "kill":
-                serverBullets.remove(bullet)
-                bullet.kill()
-
 
         packet = {"command": "EXPLOSIONDAMAGE", "data": []}
         for explosion in serverExplosions:

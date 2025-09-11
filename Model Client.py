@@ -1,6 +1,6 @@
 import pygame, random, socket, threading, json, math
 from game_classes import SCREEN_SIZE, obstacleList, npcList, enemyList, bullets, characters, explosions, Wall, \
-    Character, Bullet, World, Enemy, nodeSetup, TILE_SIZE
+    Character, Bullet, World, Enemy, nodeSetup, TILE_SIZE, Pistol, Shotgun
 from game_classes import WHITE, BLACK
 from npcs import Monarch
 
@@ -68,7 +68,7 @@ def recv_from_server(conn):
                 playerTwo.mapY = packet["data"]["yPos"]
 
             if packet["command"] == "PROJECTILE":
-                playerTwo.fire(packet["data"]["coOrds"], True)
+                playerTwo.fire((packet["data"]["start"], packet["data"]["increment"]))
 
             if packet["command"] == "ENEMYDAMAGE":
                 for enemy in enemyList:
@@ -176,6 +176,14 @@ count = 0
 	# 	  world.nodes[19][5].bottomLeft, world.nodes[19][5].left)
 
 player = characters.sprites()[0]
+for p in characters:
+    if p == player:
+        owner = p
+    else:
+        owner = False
+    p.inventory.append(Shotgun(owner))
+    p.activeWeapon = p.inventory[0]
+
 packet = {"command":"STARTCONFIRMATION"}
 s.send((json.dumps(packet) + "#").encode())
 while running == True:
@@ -189,10 +197,12 @@ while running == True:
             keys = pygame.key.get_pressed()
         if event.type == pygame.MOUSEBUTTONUP:
             if not pygame.mouse.get_pressed()[0] and event.button == 1 and not player.talking and not player.dead and not player.paused:
-                coOrds = pygame.mouse.get_pos()
-                player.fire(coOrds)
+                player.fire()
 
-    bullets.update(enemyList, world.obstacleList)
+    for bullet in bullets:
+        data = bullet.update(enemyList, world.obstacleList)
+        if data:
+            player.tell_server("hit", data)
     explosions.update()
     player.move(world.obstacleList)
     player.camera.worldAdjust(SCREEN, world, characters, enemyList, npcList)
@@ -202,7 +212,7 @@ while running == True:
     player.checkRevive(characters)
     player.checkPause()
     player.hud.animate()
-    player.calcGunAngle()
+    player.activeWeapon.calcGunAngle()
     # if player.hud.animation:
     #     if player.hud.animation == "open":
     #         player.hud.animateTalk()
@@ -219,11 +229,11 @@ while running == True:
     world.draw(SCREEN)
     explosions.draw(SCREEN)
     npcList.draw(SCREEN)
-    SCREEN.blit(player.gunimg, player.gunRect)
     characters.draw(SCREEN)
     world.obstacleList.draw(SCREEN)
     bullets.draw(SCREEN)
     enemyList.draw(SCREEN)
+    player.activeWeapon.draw(SCREEN)
     player.hud.draw(SCREEN)
     clock.tick(60)
     pygame.display.update()
