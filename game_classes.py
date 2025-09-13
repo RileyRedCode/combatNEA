@@ -137,11 +137,6 @@ class Hud:
 		self.talkBgRect = self.talkBg.get_rect()
 		self.talkBgRect.center = (900, 400)
 
-		self.speaker = pygame.image.load("Assets/speaker.png")
-		self.speaker = pygame.transform.scale(self.speaker, (800, 800))
-		self.speakerRect = self.speaker.get_rect()
-		self.speakerRect.center = 860, 400
-
 		self.textbox = pygame.Surface((800, 250), pygame.SRCALPHA)
 		self.textbox.fill((0, 0, 0, 150))
 		self.textboxRect = self.textbox.get_rect()
@@ -176,6 +171,14 @@ class Hud:
 		self.menuTxt = []
 		for op in self.menuOptions:
 			self.menuTxt.append(self.font.render(op, False, (255, 255, 255)))
+		self.menuActivity = False
+
+		self.inventoryPos = 0
+		self.inventoryOptions = []
+		self.inventoryText = []
+		self.details = []
+		self.startTime = pygame.time.get_ticks()
+		self.escapeText = self.font.render("Press escape to go back to menu", False, (255, 255, 255))
 
 	'''
 	Name: draw
@@ -214,10 +217,26 @@ class Hud:
 		if self.owner.paused or self.animation == "menuC":
 			screen.blit(self.menuBg, self.menuBgRect)
 			if not self.animation:
-				x,y = 300, 200
-				for text in self.menuTxt:
-					screen.blit(text, (x, y))
-					y += 60
+				if not self.menuActivity:
+					x,y = 300, 200
+					for text in self.menuTxt:
+						screen.blit(text, (x, y))
+						y += 60
+				if self.menuActivity == "Items":
+					x, y = 20, 40
+					for text in self.inventoryText:
+						screen.blit(text, (x, y))
+						y += 50
+					x, y = 200, 460
+					for text in self.details[0]:
+						screen.blit(text, (x, y))
+						y += 60
+					screen.blit(self.weaponImage, self.weaponRect)
+					screen.blit(self.details[1], (600,400))
+					screen.blit(self.details[2], (200, 400))
+					screen.blit(self.escapeText, (200, 730))
+
+
 		if self.owner.revive:
 			screen.blit(self.revive, self.reviveRect)
 
@@ -226,6 +245,7 @@ class Hud:
 			self.jitter = False
 			self.animation = "open"
 			self.speaker, self.dialogue, self.chatPos = npc.getSpeaker()
+			self.speakerRect = self.speaker.get_rect()
 			self.textboxRect.bottomright = (0, 800)
 			self.speakerRect.center = 860, 400
 			self.talkBgRect.center = (900, 400)
@@ -311,13 +331,22 @@ class Hud:
 			elif self.animation == "menuC":
 				self.animateMenu(True)
 			else:
-				self.menuTxt, self.menuPos, confirm = self.menu(self.menuTxt, self.menuPos, self.menuOptions)
-				if confirm:
-					if self.menuOptions[self.menuPos] == "Resume":
-						self.startAnimation("menuC")
-						self.owner.tell_server("unpause")
-						self.owner.paused = False
-
+				if not self.menuActivity:
+					self.menuTxt, self.menuPos, confirm = self.menu(self.menuTxt, self.menuPos, self.menuOptions)
+					if confirm:
+						if self.menuOptions[self.menuPos] == "Resume":
+							self.startAnimation("menuC")
+							self.owner.tell_server("unpause")
+							self.owner.paused = False
+						elif self.menuOptions[self.menuPos] == "Items":
+							self.menuActivity = "Items"
+							self.inventoryOptions = []
+							for item in self.owner.inventory:
+								self.inventoryOptions.append(item.name)
+							self.startTime = pygame.time.get_ticks()
+							self.inventory()
+				elif self.menuActivity == "Items":
+					self.inventory()
 
 	def menu(self, list, position, optionList):
 		keys = pygame.key.get_pressed()
@@ -386,6 +415,41 @@ class Hud:
 
 		self.message = self.chatPos.dialogue[self.chatNumber]
 
+	def inventory(self):
+		self.inventoryText, self.inventoryPos, confirm = self.menu(self.inventoryText, self.inventoryPos,
+																   self.inventoryOptions)
+		if confirm and self.owner.activeWeapon != self.owner.inventory[self.inventoryPos] and pygame.time.get_ticks() - self.startTime > 300:
+			self.owner.activeWeapon = self.owner.inventory[self.inventoryPos]
+			self.owner.tell_server("weapon", self.owner.activeWeapon.name)
+		weapon = self.owner.inventory[self.inventoryPos]
+		self.details = [[], weapon.damage]
+		if self.owner.activeWeapon == weapon:
+			self.details.append("Equipped")
+		else:
+			self.details.append("Press space to equip")
+		message = ""
+		count = 0
+		start = 0
+		for letter in weapon.description:
+			if count - start > 30 and weapon.description[count - 1] == " ":
+				self.details[0].append(message)
+				message = ""
+				start = count
+				count = 0
+			message += letter
+			count += 1
+		if message:
+			self.details[0].append(message)
+		for count in range(len(self.details[0])):
+			self.details[0][count] = self.font.render(self.details[0][count], False, (255, 255, 255))
+		self.details[1] = self.font.render("Damage: " + str(self.details[1]), False, (255, 255, 255))
+		self.details[2] = self.font.render(self.details[2], False, (255, 255, 255))
+		self.weaponImage = weapon.inventoryImage
+		self.weaponRect = self.weaponImage.get_rect()
+		self.weaponRect.center = (400, 200)
+		keys = pygame.key.get_pressed()
+		if keys[pygame.K_ESCAPE]:
+			self.menuActivity = False
 
 	def disText(self):
 		if self.letters != len(self.message):
@@ -778,7 +842,7 @@ class Character(pygame.sprite.Sprite):
 			start = data[0]
 			bulletList = data[1]
 			owner = False
-			self.activeWeapon.calcGunAngle(data[2])
+			self.activeWeapon.angle = data[2]
 		for bullet in bulletList:
 			bullets.add(Bullet(start[0], start[1], bullet, owner, self.activeWeapon.damage))
 
@@ -795,6 +859,8 @@ class Character(pygame.sprite.Sprite):
 				packet = {"command":"MOVE","data":{"xPos":self.mapX, "yPos":self.mapY}}
 			elif action == "projectile":
 				packet = {"command": "PROJECTILE", "data": {"start":data[0], "bulletList":data[1], "angle":data[2]}}
+			elif action == "weapon":
+				packet = {"command": "WEAPONSWAP", "data": {"weapon": data}}
 			elif action == "hit":
 				packet = {"command": "ENEMYHIT", "data": {"id": data[0], "damage": data[1]}}
 			elif action == "kill":
@@ -974,14 +1040,14 @@ class Character(pygame.sprite.Sprite):
 				self.tell_server("pause")
 
 class Gun(pygame.sprite.Sprite):
-	def __init__(self, image, damage, owner, offset, cooldown, resize = False):
+	def __init__(self, image, damage, owner, offset, cooldown, name, resize = False):
 		super().__init__()
 		self.origImage = pygame.image.load(image)
 		if resize:
 			self.origImage = pygame.transform.scale(self.origImage, resize)
 		self.image = self.origImage
 		self.rect = self.image.get_rect()
-		self.rect.center = (1000, 1000)
+		self.rect.center = (-1000, -1000)
 		self.damage = damage
 		self.owner = owner
 		self.lastShot = pygame.time.get_ticks()
@@ -990,45 +1056,47 @@ class Gun(pygame.sprite.Sprite):
 		self.barrelMap = (0, 0)#This is the coordinate for where the bullet spawns
 		self.offset = offset#(Used to reposition gun for facing, used for calculating the distance the center should be away from the player, used for determining the barrels position)
 		self.trajectory = (0, 0)
+		self.name = name
+		self.angle = 0
 
-	def calcGunAngle(self, angle= False):
+	def calcGunAngle(self, calc = False):
 		lastPos = (self.rect.center)
 		try:
-			if not angle:
+			if not calc:
 				mouse = pygame.mouse.get_pos()
 				adjacent = mouse[0] - self.owner.rect.centerx
 				opposite = mouse[1] - self.owner.rect.centery
 
-				angle = math.degrees(math.atan2(opposite, adjacent))
+				self.angle = math.degrees(math.atan2(opposite, adjacent))
 
 			#Offsets the angle so the gun faces the cursor
-			angle += self.offset[0]
-			angle = angle % 360
+			self.angle += self.offset[0]
+			self.angle = self.angle % 360
 
-			self.image = pygame.transform.rotate(self.origImage, -angle)
+			self.image = pygame.transform.rotate(self.origImage, -self.angle)
 			self.rect = self.image.get_rect()
 
 			#Positions the image
-			x = self.owner.rect.centerx + self.offset[2] * math.cos(math.radians(angle))
-			y = self.owner.rect.centery + self.offset[2] * math.sin(math.radians(angle))
+			x = self.owner.rect.centerx + self.offset[2] * math.cos(math.radians(self.angle))
+			y = self.owner.rect.centery + self.offset[2] * math.sin(math.radians(self.angle))
 			self.rect.center = (x, y)
 
 			#Resumes original angle
-			angle -= self.offset[0]
-			angle = angle % 360
+			self.angle -= self.offset[0]
+			self.angle = self.angle % 360
 
-			x = self.owner.rect.centerx + self.offset[1] * math.cos(math.radians(angle+2))
-			y = self.owner.rect.centery + self.offset[1] * math.sin(math.radians(angle+2))
+			x = self.owner.rect.centerx + self.offset[1] * math.cos(math.radians(self.angle+2))
+			y = self.owner.rect.centery + self.offset[1] * math.sin(math.radians(self.angle+2))
 			self.barrel = (x, y)
-			x = self.owner.mapX + self.offset[1] * math.cos(math.radians(angle))
-			y = self.owner.mapY + self.offset[1] * math.sin(math.radians(angle))
+			x = self.owner.mapX + self.offset[1] * math.cos(math.radians(self.angle))
+			y = self.owner.mapY + self.offset[1] * math.sin(math.radians(self.angle))
 			self.barrelMap = (x, y)
 
-			x = self.owner.rect.centerx + 150 * math.cos(math.radians(angle+2))
-			y = self.owner.rect.centery + 150 * math.sin(math.radians(angle+2))
+			x = self.owner.rect.centerx + 150 * math.cos(math.radians(self.angle+2))
+			y = self.owner.rect.centery + 150 * math.sin(math.radians(self.angle+2))
 			self.trajectory = (x, y)
 
-			return angle
+			return self.angle
 
 		except:
 			print("exception")
@@ -1052,11 +1120,17 @@ class Gun(pygame.sprite.Sprite):
 
 class Pistol(Gun):
 	def __init__(self, owner):
-		super().__init__("Assets/gun.png", 5, owner, (8, 70, 50), 100)
+		super().__init__("Assets/gun.png", 5, owner, (8, 70, 50), 100, "Pistol")
+		self.description = "A basic pistol for basic people."
+		self.inventoryImage = pygame.image.load("Assets/gun.png")
+		self.inventoryImage = pygame.transform.scale(self.inventoryImage, (400, 300))
 
 class Shotgun(Gun):
 	def __init__(self, owner):
-		super().__init__("Assets/shotgun.png", 4, owner, (4, 110, 65), 100, (110, 40))
+		super().__init__("Assets/shotgun.png", 4, owner, (4, 110, 65), 100, "Shotgun", (110, 40))
+		self.description = "A shotgun which shoots a powerful but inaccurate barage of bullets."
+		self.inventoryImage = pygame.image.load("Assets/shotgun.png")
+		self.inventoryImage = pygame.transform.scale(self.inventoryImage, (440, 160))
 
 	def fire(self):
 		#calculates the increment
@@ -1073,7 +1147,19 @@ class Shotgun(Gun):
 			for i in increment:
 				alter = random.randint(-4, 4)
 				bulletList[-1].append(i+alter)
-
+			check = False
+			for item in bulletList[count]:
+				if item > 4:
+					check = True
+			else:
+				while not check:
+					bulletList[count] = []
+					for i in increment:
+						alter = random.randint(-4, 4)
+						bulletList[-1].append(i + alter)
+					for item in bulletList[count]:
+						if item > 4 or item < -4:
+							check = True
 		return self.barrelMap, bulletList
 
 '''

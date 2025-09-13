@@ -140,7 +140,6 @@ def gameLoop(players, serverEnemies, client_list, confirmationList):
         # Determining the action for each enemy
         enemyActions = []
         for enemy in serverEnemies:
-            print(enemy.health)
             path = enemy.locate(players, serverNodes)
             enemyActions.append(enemy.travel(path))
             if ((pygame.time.get_ticks() - enemy.startTime >= 200 and enemy.startTime) or (enemy.health <= 0 and enemy.confirm)):

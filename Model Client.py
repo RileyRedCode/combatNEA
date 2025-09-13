@@ -67,6 +67,12 @@ def recv_from_server(conn):
                 playerTwo.mapX = packet["data"]["xPos"]
                 playerTwo.mapY = packet["data"]["yPos"]
 
+            if packet["command"] == "WEAPONSWAP":
+                if packet["data"]["weapon"] == "Pistol":
+                    playerTwo.activeWeapon = Pistol(playerTwo)
+                elif packet["data"]["weapon"] == "Shotgun":
+                    playerTwo.activeWeapon = Shotgun(playerTwo)
+
             if packet["command"] == "PROJECTILE":
                 playerTwo.fire((packet["data"]["start"], packet["data"]["bulletList"], packet["data"]["angle"]))
 
@@ -178,6 +184,7 @@ count = 0
 player = characters.sprites()[0]
 for p in characters:
     p.inventory.append(Shotgun(p))
+    p.inventory.append(Pistol(p))
     p.activeWeapon = p.inventory[0]
 
 packet = {"command":"STARTCONFIRMATION"}
@@ -208,7 +215,12 @@ while running == True:
     player.checkRevive(characters)
     player.checkPause()
     player.hud.animate()
-    player.activeWeapon.calcGunAngle()
+    for p in characters:
+        if p == player:
+            player.activeWeapon.calcGunAngle()
+        else:
+            p.activeWeapon.calcGunAngle(True)
+
     # if player.hud.animation:
     #     if player.hud.animation == "open":
     #         player.hud.animateTalk()
@@ -230,8 +242,6 @@ while running == True:
     bullets.draw(SCREEN)
     enemyList.draw(SCREEN)
     for p in characters:
-        if p != player:
-            print(p.activeWeapon.rect.center)
         p.activeWeapon.draw(SCREEN)
     player.hud.draw(SCREEN)
     clock.tick(60)
