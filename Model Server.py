@@ -11,6 +11,12 @@ PORT = 50000
 game = False
 clock = pygame.time.Clock()
 
+'''
+Name: recv_from_client
+Parameters: conn:connection, client_list:list
+Returns: None
+Purpose: Will send messages from one client to the other while also registering any important messages to the game loop.
+'''
 def recv_from_client(conn,client_list):
     while True:
         data = conn.recv(1024)
@@ -59,6 +65,12 @@ def recv_from_client(conn,client_list):
                             if players[p].id in packet["data"]["idList"]:
                                 players[p].reviveSelf()
 
+'''
+Name: send_to_client
+Parameters: client_list:list, packet:dictionary, identity:connection
+Returns: None
+Purpose: This sends messages to both or one client depending on if it has been specified with the identity parameter.
+'''
 def send_to_client(client_list, packet, identity=False):
     if identity:
         for client in client_list:
@@ -68,6 +80,12 @@ def send_to_client(client_list, packet, identity=False):
         for client in client_list:
             client.send((json.dumps(packet) + "#").encode())
 
+'''
+Name: gameLoop
+Parameters: players dictionary, serverEnemies:list, client_list:list, confirmationList:list
+Returns: None
+Purpose: Will check if all players have entered the game loop and if so begin determining activities such as damage collision checks, npc movement and enemy activities.
+'''
 def gameLoop(players, serverEnemies, client_list, confirmationList):
     game = False
     while not game:

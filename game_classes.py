@@ -11,6 +11,12 @@ TERRAIN_SIZE = (800, 800)
 MAP_WIDTH = 20
 MAP_RES = (TERRAIN_SIZE[0]*MAP_WIDTH, TERRAIN_SIZE[1]*MAP_WIDTH)
 
+'''
+Name: checkCollision
+Parameters: x1:int, x2:int, y1:int, y2:int, ox1:int, ox2:int, oy1:int, oy2:int
+Returns: boolean
+Purpose: Returns True or false depending on if the two rectangles given overlap.
+'''
 def checkCollision(x1, x2, y1, y2, ox1, ox2, oy1, oy2):#Give the start and end points of each objects x and y axis
 	if ((x1 <= ox1 < x2) or (x1 < ox2 <= x2) or (ox1 < x1 < ox2)) and ((y1 <= oy1 < y2) or (y1 < oy2 <= y2) or (oy1 < y1 < oy2)):
 		return True
@@ -240,6 +246,12 @@ class Hud:
 		if self.owner.revive:
 			screen.blit(self.revive, self.reviveRect)
 
+	'''
+	Name: startAnimation
+	Parameters: type:string, npc:object
+	Returns: None
+	Purpose: This is used to manage starting animations and any processes that need to be completed first.
+	'''
 	def startAnimation(self, type, npc = False):
 		if type == "open":
 			self.jitter = False
@@ -262,7 +274,12 @@ class Hud:
 		elif type == "menuC":
 			self.animation = "menuC"
 
-
+	'''
+	Name: animateTalk
+	Parameters: None
+	Returns: None
+	Purpose: Dynamically moves the components of the talk menu.
+	'''
 	def animateTalk(self):
 		increment = 0
 		if self.talkBgRect.center[0] > 500:
@@ -285,6 +302,12 @@ class Hud:
 		if self.speakerRect.center[0] != 500:
 			self.speakerRect.x -= 30
 
+	'''
+	Name: animateExit
+	Parameters: None
+	Returns: None
+	Purpose: Dynamically moves the background components to create an animation.
+	'''
 	def animateExit(self):
 		increment = 0
 		if self.talkBgRect.center[0] < 650:
@@ -297,6 +320,12 @@ class Hud:
 		if self.speakerRect.x > 800:
 			self.owner.talking = False
 
+	'''
+	Name: animateMenu
+	Parameters: reverse:boolean
+	Returns: None
+	Purpose: Will move the menu box up and down depending on if reverse is True.
+	'''
 	def animateMenu(self, reverse = False):
 		goal = 0
 		if self.menuBgRect.topleft[1] > 500:
@@ -312,6 +341,12 @@ class Hud:
 		if self.menuBgRect.y == goal:
 			self.animation = False
 
+	'''
+	Name: animate
+	Parameters: None
+	Returns: None
+	Purpose: Calls all relevant operations depending on what state the player is in and if an animation is playing.
+	'''
 	def animate(self):
 		self.healthCalc(self.owner.health)
 		if self.owner.talking:
@@ -348,6 +383,14 @@ class Hud:
 				elif self.menuActivity == "Items":
 					self.inventory()
 
+	'''
+	Name: menu
+	Parameters: list:list, position:int, optionList:list
+	Returns: list:list, position:int, boolean
+	Purpose: This detects if the player has inputted to move or select an item in the list. If not then a list of images 
+	of each option is created with the one being hovered over being coloured in red. The boolean that is returned 
+	signifies if the player has or hasn't selected.
+	'''
 	def menu(self, list, position, optionList):
 		keys = pygame.key.get_pressed()
 		#confirm
@@ -374,7 +417,13 @@ class Hud:
 				list.append(self.font.render(i, False, (255, 255, 255)))
 		return list, position, False
 
-
+	'''
+	Name: nextDialogue
+	Parameters: None
+	Returns: None
+	Purpose: Once a line of dialogue has finished being outputted, depending on whether there is a branch in the 
+	path or not this function will either call a menu or progress to the next dialogue if it has detected an input. 
+	'''
 	def nextDialogue(self):
 		if self.textDone:
 			#Handles starting new dialogue if there is only 1 option in the dialogue graph
@@ -415,6 +464,13 @@ class Hud:
 
 		self.message = self.chatPos.dialogue[self.chatNumber]
 
+	'''
+	Name: inventory
+	Parameters: None
+	Returns: None
+	Purpose: This displays items in the players inventory. It will the display details about the selected weapon and can 
+	be changed by using menu function. Also in charge of selecting the players active weapon.
+	'''
 	def inventory(self):
 		self.inventoryText, self.inventoryPos, confirm = self.menu(self.inventoryText, self.inventoryPos,
 																   self.inventoryOptions)
@@ -451,6 +507,13 @@ class Hud:
 		if keys[pygame.K_ESCAPE]:
 			self.menuActivity = False
 
+	'''
+	Name: disText
+	Parameters: None
+	Returns: None
+	Purpose: Will display a message adding 1 letter each time the function is called until the full message is displayed.
+	Will start a new line if the message is getting too long. 
+	'''
 	def disText(self):
 		if self.letters != len(self.message):
 			self.letters += 1
@@ -466,8 +529,8 @@ class Hud:
 	Name: healthCalc
 	Parameters: health:int
 	Returns: None
-	Purpose: This calculates the length of the healthbar and the amount of damage that needs to be displayed (The 
-	damage bars length will slowly decrease). 
+	Purpose: This calculates the length of the healthbar and the amount of damage or heal that needs to be displayed (The 
+	damage and heal bars lengths will slowly decrease). 
 	'''
 	def healthCalc(self, playerHealth):
 		if self.displayHealth != playerHealth:
@@ -549,9 +612,9 @@ class Camera:
 
 	'''
 	Name: worldAdjust 
-	Parameters: screen:rect, world:Object, characterList:spriteGroup, enemyList:spriteGroup
+	Parameters: screen:rect, world:Object, characterList:spriteGroup, enemyList:spriteGroup, npcList:spriteGroup
 	Returns: None
-	Purpose: This readjusts any other players or enemies in the world.
+	Purpose: This readjusts any other players, enemies and NPCs in the world.
 	'''
 	def worldAdjust(self, screen, world, characterList, enemyList, npcList):
 		worldX = self.owner.rect.center[0]-self.owner.mapX
@@ -567,7 +630,7 @@ class Camera:
 
 	'''
 	Name: bulletAdjust
-	Parameters: bulletList:spriteGroup
+	Parameters: bulletList:spriteGroup, explosionList:spriteGroup
 	Returns: None
 	Purpose: This readjusts any projectiles in the world
 	'''
@@ -628,10 +691,10 @@ class Bullet(pygame.sprite.Sprite):
 
 	'''
 	Name: update
-	Parameters: None
-	Returns: None
+	Parameters: enemyList:spriteGroup, obstacleList:spriteGroup, serverSide:boolean
+	Returns: enemy.id:int, self.damage:int
 	Purpose: This increments the x and y co-ordinates as well as checking if the bullet has collided. If the bullet has
-	passed the edge of the map or collided it will kill itself
+	passed the edge of the map or collided it will kill itself and deal any necessary damage.
 	'''
 	def update(self, enemyList, obstacleList, serverSide=False):
 		self.mapX += self.direction[0]
@@ -666,7 +729,7 @@ class Explosion(pygame.sprite.Sprite):
 
 	'''
 	Name: __init__
-	Parameters: x:integer, y:integer
+	Parameters: x:integer, y:integer, rectX:int, rectY:int
 	Returns: None
 	Purpose: Constructs an explosion.
 	'''
@@ -689,11 +752,9 @@ class Explosion(pygame.sprite.Sprite):
 
 	'''
 	Name: update
-	Parameters: None
-	Returns: None
-	Purpose: This checks if the player is colliding with the rect it then checks the distance from the center and
-	applies the appropriate amount of damage. It then deletes the explosion if enough time has passed but otherwise just
-	lowers the alpha to make it look like it's fading away.
+	Parameters: players:dict, serverSide:boolean
+	Returns: boolean, data:list
+	Purpose: This checks collisions and kills the explosion if it has ended.
 	'''
 	def update(self,players=False, serverSide = False):
 		if serverSide:
@@ -711,6 +772,13 @@ class Explosion(pygame.sprite.Sprite):
 			else:
 				return (False, data)
 
+	'''
+	Name: collisionCheck
+	Parameters: players:dict
+	Returns: victims:list
+	Purpose: This checks if a player is colliding with the explosion's rect. It then assigns damage based of the distance 
+	the player is from the center.
+	'''
 	def collisionCheck(self, players):
 		victims = []
 		for p in players:
@@ -746,6 +814,13 @@ Name: Wall
 Purpose: This is an obstacle which can't be passed through but can be destroyed.
 '''
 class Wall(pygame.sprite.Sprite):
+
+	'''
+	Name: __init__
+	Parameters: x:integer, y:integer
+	Returns: None
+	Purpose: Constructor.
+	'''
 	def __init__(self,x,y):
 		super().__init__()
 		self.hp = 10
@@ -775,6 +850,12 @@ class Wall(pygame.sprite.Sprite):
 		elif self.hp < 7:
 			pygame.draw.rect(self.image, GREEN, (0, 0, self.width, self.height))
 
+	'''
+	Name: __repr__
+	Parameters: None
+	Returns: string
+	Purpose: Used for testing purposes.
+	'''
 	def __repr__(self):
 		return f"{self.mapX}, {self.mapY}, wall"
 
@@ -787,7 +868,7 @@ class Character(pygame.sprite.Sprite):
 
 	'''
 	Name: __init__
-	Parameters: x:integer, y:integer, conn:connection
+	Parameters: x:integer, y:integer, conn:connection, serverSide:boolean, id:int
 	Returns: None
 	Purpose: Constructor for player characters.
 	'''
@@ -827,7 +908,7 @@ class Character(pygame.sprite.Sprite):
 
 	'''
 	Name: fire
-	Parameters: coOrds:list, calculated:boolean
+	Parameters: data:list
 	Returns: None
 	Purpose: This creates a bullet which travels in the direction of the cursor. It also informs the server so a shot is
 	fired on other player's screens.
@@ -848,9 +929,9 @@ class Character(pygame.sprite.Sprite):
 
 	'''
 	Name: tell_server
-	Parameters: action:string, coOrds:list
+	Parameters: action:string, data:list
 	Returns: None
-	Purpose: This function sends a message to the server so that the saem action can be completed on other player's 
+	Purpose: This function sends a message to the server so that the same action can be completed on other player's 
 	games.
 	'''
 	def tell_server(self, action, data =  None):
@@ -882,9 +963,9 @@ class Character(pygame.sprite.Sprite):
 
 	'''
 	Name: move
-	Parameters: None
+	Parameters: obstacles:spriteGroup
 	Returns: None
-	Purpose: This checks if a player can move or wether they will collide with a wall. If the player is moving in 
+	Purpose: This checks if a player can move or whether they will collide with a wall. If the player is moving in 
 	multiple directions it will lower the velocity. 
 	'''
 	def move(self, obstacles):
@@ -952,9 +1033,9 @@ class Character(pygame.sprite.Sprite):
 
 	'''
 	Name: takeDamage
-	Parameters: damage:int
+	Parameters: damage:int, serverSide:boolean
 	Returns: None
-	Purpose: If enough time has passed since last damaged the enemy will take damage
+	Purpose: If enough time has passed since last time the player had been damaged by an enemy, they will take damage.
 	'''
 	def takeDamage(self, damage, serverSide=False):
 		if serverSide:
@@ -968,6 +1049,12 @@ class Character(pygame.sprite.Sprite):
 			if self.health < 0:
 				self.health = 0
 
+	'''
+	Name: checkTalk
+	Parameters: npcs:spriteGroup
+	Returns: npc:object
+	Purpose: This will check if a player has collided with an NPC and wether their talk cooldown has ended.
+	'''
 	def checkTalk(self, npcs):
 		if self.talkCooldown:
 			if pygame.time.get_ticks() - self.talkCooldown > 1000:
@@ -984,6 +1071,12 @@ class Character(pygame.sprite.Sprite):
 
 		return False
 
+	'''
+	Name: endTalk
+	Parameters: serverSide:boolean
+	Returns: None
+	Purpose: Tells the server and removes the player from the NPC's customers.
+	'''
 	def endTalk(self, serverSide=False):
 		if serverSide:
 			self.talking.removeCustomer(self.id)
@@ -993,7 +1086,12 @@ class Character(pygame.sprite.Sprite):
 			self.hud.startAnimation("close")
 		self.talkCooldown = pygame.time.get_ticks()
 
-
+	'''
+	Name: die
+	Parameters: serverSide:boolean
+	Returns: None
+	Purpose: Changes the player's state and sprites.
+	'''
 	def die(self, serverSide=False):
 		self.dead = pygame.time.get_ticks()
 		if not serverSide:
@@ -1002,9 +1100,21 @@ class Character(pygame.sprite.Sprite):
 		if self.talking:
 			self.endTalk(serverSide)
 
+	'''
+	Name: deadSprite
+	Parameters: None
+	Returns: None
+	Purpose: Changes the players sprite to a dead one.
+	'''
 	def deadSprite(self):
 		self.image = self.deadImage
 
+	'''
+	Name: checkRevive
+	Parameters: players:list
+	Returns: None
+	Purpose: This will check if the player is holding the revive key and will revive any nearby players.
+	'''
 	def checkRevive(self, players):
 		checked = False
 		reviveList = []
@@ -1026,11 +1136,23 @@ class Character(pygame.sprite.Sprite):
 					if player.id in reviveList:
 						player.reviveSelf()
 
+	'''
+	Name: reviveSelf
+	Parameters: None
+	Returns: None
+	Purpose: Changes the players sprites, states and sets the players health to 50.
+	'''
 	def reviveSelf(self):
 		self.health = 50
 		self.dead = False
 		self.image = self.aliveImage
 
+	'''
+	Name: checkPause
+	Parameters: None
+	Returns: None
+	Purpose: Will check if the player is holding down the pause button and if so will activate the pause menu.
+	'''
 	def checkPause(self):
 		keys = pygame.key.get_pressed()
 		if keys[pygame.K_ESCAPE]:
@@ -1039,7 +1161,18 @@ class Character(pygame.sprite.Sprite):
 				self.paused = True
 				self.tell_server("pause")
 
+'''
+Name: Gun
+Purpose: Parent class for all gun related weapons.
+'''
 class Gun(pygame.sprite.Sprite):
+
+	'''
+	Name: __init__
+	Parameters: image:str, damage:int, owner:object, cooldown:int, name:str, resize:tuple
+	Returns: None
+	Purpose: Constructor.
+	'''
 	def __init__(self, image, damage, owner, offset, cooldown, name, resize = False):
 		super().__init__()
 		self.origImage = pygame.image.load(image)
@@ -1059,6 +1192,12 @@ class Gun(pygame.sprite.Sprite):
 		self.name = name
 		self.angle = 0
 
+	'''
+	Name: calcGunAngle
+	Parameters: calc:boolean
+	Returns: None
+	Purpose: Calculates the position rotation and location of the barrel of the gun based of the player's mouse position.
+	'''
 	def calcGunAngle(self, calc = False):
 		lastPos = (self.rect.center)
 		try:
@@ -1102,6 +1241,12 @@ class Gun(pygame.sprite.Sprite):
 			print("exception")
 			self.rect.center = lastPos
 
+	'''
+	Name: fire
+	Parameters: None
+	Returns: self.barrelMap:tuple, bulletList:sprite group
+	Purpose: Creates a bullet and calculates the angle and velocity
+	'''
 	def fire(self):
 		#calculates the increment
 		increment = [self.barrel[0] - self.trajectory[0], self.barrel[1] - self.trajectory[1]]
@@ -1115,23 +1260,57 @@ class Gun(pygame.sprite.Sprite):
 		bulletList.append(increment)
 		return self.barrelMap, bulletList
 
+	'''
+	Name: draw
+	Parameters: screen:rect
+	Returns: None
+	Purpose: Displays the gun's sprite.
+	'''
 	def draw(self, screen):
 		screen.blit(self.image, self.rect)
 
+'''
+Name: Pistol
+Purpose: Type of gun that shoots singular shots.
+'''
 class Pistol(Gun):
+
+	'''
+	Name: __init__
+	Parameters: owner:object
+	Returns: None
+	Purpose: Constructor.
+	'''
 	def __init__(self, owner):
 		super().__init__("Assets/gun.png", 5, owner, (8, 70, 50), 100, "Pistol")
 		self.description = "A basic pistol for basic people."
 		self.inventoryImage = pygame.image.load("Assets/gun.png")
 		self.inventoryImage = pygame.transform.scale(self.inventoryImage, (400, 300))
 
+'''
+Name: Shotgun
+Purpose: Shoots a random spray of bullets.
+'''
 class Shotgun(Gun):
+
+	'''
+	Name: __init__
+	Parameters: owner:object
+	Returns: None
+	Purpose: Constructor.
+	'''
 	def __init__(self, owner):
 		super().__init__("Assets/shotgun.png", 4, owner, (4, 110, 65), 100, "Shotgun", (110, 40))
 		self.description = "A shotgun which shoots a powerful but inaccurate barage of bullets."
 		self.inventoryImage = pygame.image.load("Assets/shotgun.png")
 		self.inventoryImage = pygame.transform.scale(self.inventoryImage, (440, 160))
 
+	'''
+	Name: fire
+	Parameters: None
+	Returns: self.barrelMap:tuple, bulletList:sprite group
+	Purpose: Modified version of the fire function which instead shoots a random spray of several bullets.
+	'''
 	def fire(self):
 		#calculates the increment
 		increment = [self.barrel[0] - self.trajectory[0], self.barrel[1] - self.trajectory[1]]
@@ -1236,7 +1415,7 @@ class Enemy(pygame.sprite.Sprite):
 
 	'''
 	Name: __init__
-	Parameters: x:int, y:int
+	Parameters: x:int, y:int, id:int
 	Returns: None
 	Purpose: Constructor for enemies.
 	'''
@@ -1367,14 +1546,31 @@ class Enemy(pygame.sprite.Sprite):
 		enemyList.remove(self)
 		self.kill()
 
+	'''
+	Name: takeDamage
+	Parameters: damage:int
+	Returns: None
+	Purpose: Damages the enemy.
+	'''
 	def takeDamage(self, damage):
 		self.health -= damage
 		if self.health <= 0:
 			self.health = 0
 
+'''
+Name: ServerEnemy
+Purpose: An enemy which is modified to work on serverSide.
+'''
 class ServerEnemy:
 	idcount = 0
 	directions = [(-1, -1), (0, -2), (1, -1), (2, 0), (1, 1), (0, 2), (-1, 1), (-2, 0)]
+
+	'''
+	Name: __init__
+	Parameters: x:integer, y:integer
+	Returns: None
+	Purpose: Constructor.
+	'''
 	def __init__(self, x, y):
 		self.width = TILE_SIZE
 		self.height = TILE_SIZE
@@ -1389,6 +1585,12 @@ class ServerEnemy:
 		self.direction = (4, 4)
 		self.targets = []
 
+	'''
+	Name: locate
+	Parameters: playerList:dict, serverNodes:list
+	Returns: solution:list
+	Purpose: Performs an A* search if a player has been spotted. Enemies will prioritise the closest visible enemy.
+	'''
 	def locate(self, playerList, serverNodes):
 		for p in playerList:
 			distance = (self.mapX - playerList[p].mapX), (self.mapY - playerList[p].mapY)
@@ -1477,6 +1679,13 @@ class ServerEnemy:
 					solution = True
 		else:
 			return False
+
+	'''
+	Name: travel
+	Parameters: path:list
+	Returns: packet:dict
+	Purpose: This determines the enemy's activity. This could be dieing moving or attacking.
+	'''
 	def travel(self, path):
 		packet =  None
 		if self.health <= 0:
@@ -1522,6 +1731,12 @@ class ServerEnemy:
 
 		return packet
 
+	'''
+	Name: takeDamage
+	Parameters: damage:int
+	Returns: None
+	Purpose: Takes damage away from health.
+	'''
 	def takeDamage(self, damage):
 		self.health -= damage
 		if self.health <= 0:

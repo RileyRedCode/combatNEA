@@ -3,8 +3,6 @@ from xml.etree.ElementTree import XMLParser
 from npcs import Monarch
 from PIL import Image
 
-#Need to program linear search to ensure no conflicts slip through, need to guranatee all biomes, DEEP WATER increase likelihood?
-
 
 #--------------------------- OLD PERIMETER CODE (May want later) ---------------------------------------------------
 # perimeter = 2
@@ -44,7 +42,18 @@ BIOME_IMGS = {"Plains":Image.new("RGB", (TERRAIN_SIZE), (0, 255, 0)),
                 "Water":Image.new("RGB", (TERRAIN_SIZE), (0, 0, 255)),
                 "DWater":Image.new("RGB", (TERRAIN_SIZE), (0, 170, 170))}
 
+'''
+Name: MapGenerator
+Purpose: Used to generate maps, create map images and generate objects.
+'''
 class MapGenerator:
+
+    '''
+    Name: __init__
+    Parameters: textMap:list, obstacles:list
+    Returns: None
+    Purpose: Constructor
+    '''
     def __init__(self, textMap=False, obstacles = False):
         self.mapWidth = 20
         self.halfWidth = self.mapWidth // 2
@@ -75,6 +84,15 @@ class MapGenerator:
         else:
             self.obstacles = obstacles
 
+        '''
+    	Name: generate
+    	Parameters: None
+    	Returns: self.textMap:list, self.obstacles:list, self.NPCs:sprite group
+    	Purpose: This generates a map using soft constraint satisfaction and then generates obstacles. Constraint satisfaction 
+    	involves finding the tile that creates the least conflicts in order to generate a somewhat natural map while still 
+    	being random. This works by selecting random tiles in order to (prevent artifacting) and then choosing a random terrain 
+    	which is influenced by the probabilities of surropunding tiles.  
+    	'''
     def generate(self):#Generates a map
         success = False
         while not success:
@@ -143,6 +161,12 @@ class MapGenerator:
         self.obstacleGen()
         return self.textMap, self.obstacles, self.NPCs
 
+    '''
+    Name: checkProbability
+    Parameters: x:int, y:int
+    Returns: probs:dictionary, conflicts:int
+    Purpose: This function will calculate the probabilities using the surrounding tiles to the attached tile and calculate how many conflicts are generated.
+    '''
     def checkProbability(self, x, y):#Gets a pool of probabilities
         area = 3
         conflicts = 0
@@ -156,6 +180,12 @@ class MapGenerator:
                     probs[key] += self.probability[self.textMap[tempX][tempY]][key]#Adds the probabilities from this cell
         return probs, conflicts
 
+    '''
+    Name: biomeCheck
+    Parameters: None
+    Returns: safe:boolean
+    Purpose: Ensures that there is at least a certain amount of each type of tile.
+    '''
     def biomeCheck(self):
         biomeCount = {"Plains": 0, "Mountain": 0, "HMountain": 0,
                       "Forest": 0, "Water": 0, "DWater": 0}
@@ -170,14 +200,32 @@ class MapGenerator:
                 safe  = False
         return safe
 
+    '''
+    Name: clearMap
+    Parameters: None
+    Returns: None
+    Purpose: This clears the map and will only be called if a map is unsatisfactory. 
+    '''
     def clearMap(self):
         self.textMap = [[False for count in range(self.mapWidth)] for i in range(self.mapWidth)]
 
+    '''
+    Name: text2Tile
+    Parameters: None
+    Returns: None
+    Purpose: This creates Tiles for each terrain in the maps.
+    '''
     def text2Tile(self):
         for x in range(self.mapWidth):
             for y in range(self.mapWidth):
                 self.textMap[y][x] = Tile(self.textMap[y][x])
 
+    '''
+    Name: makeimage
+    Parameters: None
+    Returns: None
+    Purpose: This creates an image of the map.
+    '''
     def makeimage(self):
         self.imgMap = Image.new( 'RGB', ((self.mapWidth*TERRAIN_SIZE[0]),(self.mapWidth*TERRAIN_SIZE[0])), "red")
         for x in range(self.mapWidth):
@@ -185,6 +233,12 @@ class MapGenerator:
                 self.imgMap.paste(self.textMap[y][x].img, (x*TERRAIN_SIZE[0], y*TERRAIN_SIZE[0]))
         self.imgMap.save("map.png")
 
+    '''
+    Name: obstacleGen
+    Parameters: None
+    Returns: self.obstacles:list
+    Purpose: This generates obstacles and also instantiates NPCs for any houses.
+    '''
     def obstacleGen(self):
         used = []
         c = 0
@@ -223,6 +277,12 @@ class MapGenerator:
                 self.obstacles.append(((ranXo, ranYo), "Bush"))
         return self.obstacles
 
+    '''
+    Name: createObstacles
+    Parameters: None
+    Returns: None
+    Purpose: Instantiates buildings for each obstacle in obstacles.
+    '''
     def createObstacles(self):
         self.obstacleList = pygame.sprite.Group()
         for obstacle in self.obstacles:
@@ -233,6 +293,12 @@ class MapGenerator:
             elif obstacle[1] == "Bush":
                 self.obstacleList.add(Bush(*obstacle[0]))
 
+    '''
+    Name: finalise
+    Parameters: None
+    Returns: imgMap:image, obstacleList:sprite group
+    Purpose: Carries out all the steps needed after the initial map creation to finish it.
+    '''
     def finalise(self):
         self.text2Tile()
         self.makeimage()
@@ -268,12 +334,36 @@ class MapGenerator:
     #         self.blocks.append(Terrain(cellX, cellY, self))
     #         pygame.display.flip()
 
+
+'''
+Name: Tile
+Purpose: Stores the image of a relevant terrain.
+'''
 class Tile:
+
+    '''
+    Name: __init__
+    Parameters: biome:string
+    Returns: None
+    Purpose: Constructor
+    '''
     def __init__(self, biome):
         self.biome = biome
         self.img = BIOME_IMGS[biome]
 
+
+'''
+Name: Obstacle
+Purpose: This is a parent class used for obstacles which are objects the player and enemies cannot pass through.
+'''
 class Obstacle(pygame.sprite.Sprite):
+
+    '''
+    Name: __init__
+    Parameters: x:int, y:int, width:int, height:int, image:string, name:string
+    Returns: None
+    Purpose: Constructor
+    '''
     def __init__(self, x, y, width, height, image, name):
         super().__init__()
         self.type = name
@@ -286,15 +376,45 @@ class Obstacle(pygame.sprite.Sprite):
         self.rect = self.image.get_rect()
         self.rect.center = (x, y)
 
+    '''
+    Name: __repr__
+    Parameters: None
+    Returns: string
+    Purpose: Used for debug to check obstacle positions are valid.
+    '''
     def __repr__(self):
         return f"{self.mapX}, {self.mapY}, obstacle"
 
+
+'''
+Name: House
+Purpose: A large obstacle owned by an NPC
+'''
 class House(Obstacle):
+
+    '''
+    Name: __init__
+    Parameters: x:int, y:int, owner:object
+    Returns: None
+    Purpose: Constructor
+    '''
     def __init__(self, x, y, owner):
         super().__init__(x + TILE_SIZE*4, y + TILE_SIZE*4, TILE_SIZE*8, TILE_SIZE*8, "Assets/house.png", "House")
         self.owner = owner
 
+
+'''
+Name: Grave
+Purpose: Special type of obstacle which spawns enemies if a player is too close
+'''
 class Grave(Obstacle):
+
+    '''
+    Name: __init__
+    Parameters: x:int, y:int
+    Returns: None
+    Purpose: Constructor
+    '''
     def __init__(self, x, y):
         super().__init__(x, y, TILE_SIZE, TILE_SIZE, "Assets/skull.png", "Grave")
         self.lastSpawn = pygame.time.get_ticks()
@@ -311,36 +431,20 @@ class Grave(Obstacle):
                 return self.mapX + TILE_SIZE + (TILE_SIZE//2), self.mapY +TILE_SIZE+ (TILE_SIZE//2)
         return False
 
+
+'''
+Name: Bush
+Purpose: Generic obstacle.
+'''
 class Bush(Obstacle):
+
+    '''
+    Name: __init__
+    Parameters: x:int, y:int
+    Returns: None
+    Purpose: Constructor
+    '''
     def __init__(self, x, y):
         super().__init__(x, y, TILE_SIZE, TILE_SIZE, "Assets/bush.png", "Bush")
 
 
-
-# class ServerObstacle:
-#     def __init__(self, type, x, y):
-#         self.type = type
-#         self.width = TILE_SIZE
-#         self.height = TILE_SIZE
-#         self.mapX = x
-#         self.mapY = y
-
-
-#
-# oh = MapGenerator()
-# oh.generate()
-# oh.text2Tile()
-# oh.makeimage()
-
-
-#
-#
-# def linear_check():
-#     for y in range(MAP_WIDTH):
-#         for x in range(MAP_WIDTH):
-#             if bMap[y][x] == "DWater":
-#                 area = 2
-#                 for xC in range((x - area), (x + area)):  # This will cycle the 3 cells to the left and the right of the cell aswell as the cell itself
-#                     for yC in range(y - area, y + area):
-#                         tempX = (xC) % len(bMap)
-#                         tempY = (yC) % len(bMap[0])

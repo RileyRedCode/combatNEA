@@ -10,6 +10,14 @@ obstacles = []
 textMap = []
 
 Waiting = True
+
+'''
+Name: recv_from_server
+Parameters: conn:connection
+Returns: None
+Purpose: Recieves messages from the server and responds as appropriate.
+'''
+
 def recv_from_server(conn):
     global Waiting
     while True:
@@ -133,6 +141,12 @@ pygame.font.init()
 SCREEN = pygame.display.set_mode(SCREEN_SIZE)
 clock = pygame.time.Clock()
 
+'''
+Name: wait_screen
+Parameters: None
+Returns: None
+Purpose: Will display a waiting screen until it has recieved a mesage to stop from the server.
+'''
 def wait_screen():
     global Waiting
     text = "Waiting for the other player to connect"
