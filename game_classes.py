@@ -173,7 +173,7 @@ class Hud:
 		self.menuBgRect.topleft = (0, 800)
 
 		self.menuPos = 0
-		self.menuOptions = ["Resume", "Items"]
+		self.menuOptions = ["Resume", "Items", "Controls"]
 		self.menuTxt = []
 		for op in self.menuOptions:
 			self.menuTxt.append(self.font.render(op, False, (255, 255, 255)))
@@ -185,6 +185,7 @@ class Hud:
 		self.details = []
 		self.startTime = pygame.time.get_ticks()
 		self.escapeText = self.font.render("Press escape to go back to menu", False, (255, 255, 255))
+		self.controlText = []
 
 	'''
 	Name: draw
@@ -228,6 +229,7 @@ class Hud:
 					for text in self.menuTxt:
 						screen.blit(text, (x, y))
 						y += 60
+
 				if self.menuActivity == "Items":
 					x, y = 20, 40
 					for text in self.inventoryText:
@@ -242,6 +244,12 @@ class Hud:
 					screen.blit(self.details[2], (200, 400))
 					screen.blit(self.escapeText, (200, 730))
 
+				if self.menuActivity == "Controls":
+					x, y = 100, 200
+					for control in self.controlText:
+						screen.blit(control, (x, y))
+						y += 60
+					screen.blit(self.escapeText, (200, 730))
 
 		if self.owner.revive:
 			screen.blit(self.revive, self.reviveRect)
@@ -380,8 +388,13 @@ class Hud:
 								self.inventoryOptions.append(item.name)
 							self.startTime = pygame.time.get_ticks()
 							self.inventory()
+						elif self.menuOptions[self.menuPos] == "Controls":
+							self.menuActivity = "Controls"
+							self.startTime = pygame.time.get_ticks()
 				elif self.menuActivity == "Items":
 					self.inventory()
+				elif self.menuActivity == "Controls":
+					self.controls()
 
 	'''
 	Name: menu
@@ -503,6 +516,24 @@ class Hud:
 		self.weaponImage = weapon.inventoryImage
 		self.weaponRect = self.weaponImage.get_rect()
 		self.weaponRect.center = (400, 200)
+		keys = pygame.key.get_pressed()
+		if keys[pygame.K_ESCAPE]:
+			self.menuActivity = False
+
+	def controls(self):
+		self.controlOptions = []
+		if self.owner.movementKeys["up"] == pygame.K_w:
+			self.controlOptions.append("Movement keys:   WASD")
+		else:
+			self.controlOptions.append("Movement keys:   Arrows")
+
+		self.controlText, blank, confirm = self.menu(self.controlText, 0, self.controlOptions)
+		if confirm and pygame.time.get_ticks() - self.startTime > 300:
+			if self.owner.movementKeys["up"] == pygame.K_w:
+				self.owner.movementKeys = {"up":pygame.K_UP, "down":pygame.K_DOWN, "left":pygame.K_LEFT, "right":pygame.K_RIGHT}
+			else:
+				self.owner.movementKeys = {"up": pygame.K_w, "down": pygame.K_s, "left": pygame.K_a, "right": pygame.K_d}
+			self.startTime = pygame.time.get_ticks()
 		keys = pygame.key.get_pressed()
 		if keys[pygame.K_ESCAPE]:
 			self.menuActivity = False
@@ -905,6 +936,7 @@ class Character(pygame.sprite.Sprite):
 		self.paused = False
 		self.inventory = []
 		self.activeWeapon = False
+		self.movementKeys = {"up":pygame.K_w, "down":pygame.K_s, "left":pygame.K_a, "right":pygame.K_d}
 
 	'''
 	Name: fire
@@ -972,17 +1004,17 @@ class Character(pygame.sprite.Sprite):
 		if not self.talking and not self.dead and not self.paused:
 			keys = pygame.key.get_pressed()
 			velocity = 6
-			if keys[pygame.K_d] == True:#Account for diagonal speed
-				if keys[pygame.K_w] == True or keys[pygame.K_s] == True:
+			if keys[self.movementKeys["right"]] == True:#Account for diagonal speed
+				if keys[self.movementKeys["up"]] == True or keys[self.movementKeys["down"]] == True:
 					velocity = math.floor(velocity *0.7)
 
 
-			elif keys[pygame.K_a] == True:
-				if keys[pygame.K_w] == True or keys[pygame.K_s] == True:
+			elif keys[self.movementKeys["left"]] == True:
+				if keys[self.movementKeys["up"]] == True or keys[self.movementKeys["down"]] == True:
 					velocity =  math.floor(velocity *0.7)
 
 
-			if keys[pygame.K_w] == True:
+			if keys[self.movementKeys["up"]] == True:
 				self.rect.y -= velocity
 				#self.mapY -= velocity
 				self.direction = "UP"
@@ -995,7 +1027,7 @@ class Character(pygame.sprite.Sprite):
 				# if frame
 				self.tell_server("move")
 
-			if keys[pygame.K_s]:
+			if keys[self.movementKeys["down"]]:
 				self.rect.y += velocity
 				#self.mapY += velocity
 				self.direction = "DOWN"
@@ -1007,7 +1039,7 @@ class Character(pygame.sprite.Sprite):
 					#self.mapY = SCREEN_SIZE[1]-self.height
 				self.tell_server("move")
 
-			if keys[pygame.K_a]:
+			if keys[self.movementKeys["left"]]:
 				self.rect.x -= velocity
 				# self.mapX -= math.floor(velocity)
 				self.direction = "LEFT"
@@ -1019,7 +1051,7 @@ class Character(pygame.sprite.Sprite):
 					# self.mapX = 0
 				self.tell_server("move")
 
-			if keys[pygame.K_d]:
+			if keys[self.movementKeys["right"]]:
 				self.rect.x += velocity
 				# self.mapX += velocity
 				self.direction = "RIGHT"

@@ -245,7 +245,7 @@ class MapGenerator:
         for count in range(3):
             x = random.randint(0, self.mapWidth-1)
             y = random.randint(0, self.mapWidth-1)
-            while self.textMap[y][x] != "DWater" and self.textMap[y][x] != "Water":
+            while self.textMap[y][x] != "DWater" and self.textMap[y][x] != "Water" and (x, y) not in used:
                 x = random.randint(0, self.mapWidth - 1)
                 y = random.randint(0, self.mapWidth - 1)
             self.NPCs.add(Monarch((x * TERRAIN_SIZE[0]) + (TILE_SIZE * 8),
