@@ -32,7 +32,7 @@ def recv_from_client(conn,client_list):
 
                     if packet["command"] == "ENEMYHIT":
                         for enemy in serverEnemies:
-                            if enemy.id == packet["data"]["id"]:
+                            if enemy.id in packet["data"]["list"]:
                                 enemy.takeDamage(packet["data"]["damage"])
 
                     if packet["command"] == "STARTCONFIRMATION":
@@ -224,6 +224,9 @@ for npc in serverNPCs:
 serverEnemies = []
 enemies = []
 serverEnemies.append(ServerEnemy(2000, 2000))
+# serverEnemies.append(ServerEnemy(2100, 2100))
+# serverEnemies.append(ServerEnemy(2000, 2100))
+# serverEnemies.append(ServerEnemy(2100, 2000))
 # serverEnemies.append(ServerEnemy(3000, 4000))
 # serverEnemies.append(ServerEnemy(4000, 4000))
 # serverEnemies.append(ServerEnemy(6000, 4000))

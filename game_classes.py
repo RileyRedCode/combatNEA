@@ -736,7 +736,7 @@ class Bullet(pygame.sprite.Sprite):
 				if self.owner:
 					bullets.remove(self)
 					self.kill()
-					return enemy.id, self.damage
+					return [enemy.id], self.damage
 
 				bullets.remove(self)
 				self.kill()
@@ -750,6 +750,35 @@ class Bullet(pygame.sprite.Sprite):
 		if self.mapY < 0 or self.mapY> MAP_RES[1] or self.mapX< 0 or self.mapX > MAP_RES[0]:#If outside the map
 			bullets.remove(self)
 			self.kill()
+
+class NeoBullet(Bullet):
+
+	def __init__(self,x,y,direction, owner, damage):
+		super().__init__(x,y,direction, owner, damage)
+		self.victimList = []
+
+	def update(self, enemyList, obstacleList, serverSide=False):
+		self.mapX += self.direction[0]
+		self.mapY += self.direction[1]
+		hitList = []
+		for enemy in enemyList:
+			if checkCollision(self.mapX - 2, self.mapX + 2, self.mapY - 2, self.mapY + 2,
+							  enemy.mapX - (enemy.width//2), enemy.mapX + (enemy.width//2), enemy.mapY - (enemy.height//2), enemy.mapY + (enemy.height//2)) and enemy not in self.victimList:
+				if self.owner:
+					self.victimList.append(enemy)
+					hitList.append(enemy.id)
+
+		for obstacle in obstacleList:
+			if checkCollision(self.mapX - 2, self.mapX + 2, self.mapY - 2, self.mapY + 2,
+							  obstacle.mapX - (obstacle.width//2), obstacle.mapX + (obstacle.width//2), obstacle.mapY - (obstacle.height//2), obstacle.mapY + (obstacle.height//2)):
+				bullets.remove(self)
+				self.kill()
+
+		if self.mapY < 0 or self.mapY> MAP_RES[1] or self.mapX< 0 or self.mapX > MAP_RES[0]:#If outside the map
+			bullets.remove(self)
+			self.kill()
+		if len(hitList) > 0:
+			return hitList, self.damage
 
 
 '''
@@ -957,7 +986,10 @@ class Character(pygame.sprite.Sprite):
 			owner = False
 			self.activeWeapon.angle = data[2]
 		for bullet in bulletList:
-			bullets.add(Bullet(start[0], start[1], bullet, owner, self.activeWeapon.damage))
+			if self.activeWeapon.name != "NeoGun":
+				bullets.add(Bullet(start[0], start[1], bullet, owner, self.activeWeapon.damage))
+			else:
+				bullets.add(NeoBullet(start[0], start[1], bullet, owner, self.activeWeapon.damage))
 
 	'''
 	Name: tell_server
@@ -975,7 +1007,7 @@ class Character(pygame.sprite.Sprite):
 			elif action == "weapon":
 				packet = {"command": "WEAPONSWAP", "data": {"weapon": data}}
 			elif action == "hit":
-				packet = {"command": "ENEMYHIT", "data": {"id": data[0], "damage": data[1]}}
+				packet = {"command": "ENEMYHIT", "data": {"list": data[0], "damage": data[1]}}
 			elif action == "kill":
 				packet = {"command": "CONFIRMATION", "data": {"id": data}}
 			elif action == "death":
@@ -1288,7 +1320,7 @@ class Gun(pygame.sprite.Sprite):
 		bulletList = []
 		for count in range(2):
 			increment[count] = increment[count] * -1
-			increment[count] = increment[count] / seconds #divides the length of the distance by the number o f seconds to get the distance per second
+			increment[count] = increment[count] / seconds #divides the length of the distance by the number of seconds to get the distance per second
 		bulletList.append(increment)
 		return self.barrelMap, bulletList
 
@@ -1372,6 +1404,13 @@ class Shotgun(Gun):
 						if item > 4 or item < -4:
 							check = True
 		return self.barrelMap, bulletList
+
+class NeoGun(Gun):
+	def __init__(self, owner):
+		super().__init__("Assets/neogun.png", 4, owner, (8, 70, 50), 100, "NeoGun")
+		self.description = "Introducing the latest technological marvel: the NeoGun! (All rights reserved)."
+		self.inventoryImage = pygame.image.load("Assets/neogun.png")
+		self.inventoryImage = pygame.transform.scale(self.inventoryImage, (400, 300))
 
 '''
 Name: priorityQueue
@@ -1588,6 +1627,7 @@ class Enemy(pygame.sprite.Sprite):
 		self.health -= damage
 		if self.health <= 0:
 			self.health = 0
+
 
 '''
 Name: ServerEnemy

@@ -1,6 +1,6 @@
 import pygame, random, socket, threading, json, math
 from game_classes import SCREEN_SIZE, obstacleList, npcList, enemyList, bullets, characters, explosions, Wall, \
-    Character, Bullet, World, Enemy, nodeSetup, TILE_SIZE, Pistol, Shotgun
+    Character, Bullet, World, Enemy, nodeSetup, TILE_SIZE, Pistol, Shotgun, NeoGun
 from game_classes import WHITE, BLACK
 from npcs import Monarch
 
@@ -80,6 +80,8 @@ def recv_from_server(conn):
                     playerTwo.activeWeapon = Pistol(playerTwo)
                 elif packet["data"]["weapon"] == "Shotgun":
                     playerTwo.activeWeapon = Shotgun(playerTwo)
+                elif packet["data"]["weapon"] == "NeoGun":
+                    playerTwo.activeWeapon = NeoGun(playerTwo)
 
             if packet["command"] == "PROJECTILE":
                 playerTwo.fire((packet["data"]["start"], packet["data"]["bulletList"], packet["data"]["angle"]))
@@ -199,6 +201,7 @@ player = characters.sprites()[0]
 for p in characters:
     p.inventory.append(Shotgun(p))
     p.inventory.append(Pistol(p))
+    p.inventory.append(NeoGun(p))
     p.activeWeapon = p.inventory[0]
 
 packet = {"command":"STARTCONFIRMATION"}
