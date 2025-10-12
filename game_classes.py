@@ -1288,7 +1288,7 @@ class Gun(pygame.sprite.Sprite):
 		bulletList = []
 		for count in range(2):
 			increment[count] = increment[count] * -1
-			increment[count] = increment[count] / seconds #divides the length of the distance by the number of seconds to get the distance per second
+			increment[count] = increment[count] / seconds #divides the length of the distance by the number o f seconds to get the distance per second
 		bulletList.append(increment)
 		return self.barrelMap, bulletList
 
@@ -1629,13 +1629,13 @@ class ServerEnemy:
 			hypotenuse = math.sqrt((distance[0] ** 2) + (distance[1] ** 2))
 			if hypotenuse < 500 and not playerList[p].dead:
 				self.targets.append([playerList[p], hypotenuse])
-			elif playerList[p] in self.targets:
-				for t in self.targets:
-					if t[0] == playerList[p]:
-						if playerList[p].dead:
-							self.targets.remove(t)
-						else:
-							t[1] = hypotenuse
+
+			for t in self.targets:
+				if t[0] == playerList[p]:
+					if playerList[p].dead:
+						self.targets.remove(t)
+					else:
+						t[1] = hypotenuse
 
 		if len(self.targets) > 0:#If a player has been sighted
 			shortestDis = False
