@@ -756,6 +756,7 @@ class NeoBullet(Bullet):
 	def __init__(self,x,y,direction, owner, damage):
 		super().__init__(x,y,direction, owner, damage)
 		self.victimList = []
+		self.image.fill((200, 200, 0))
 
 	def update(self, enemyList, obstacleList, serverSide=False):
 		self.mapX += self.direction[0]
@@ -986,7 +987,7 @@ class Character(pygame.sprite.Sprite):
 			owner = False
 			self.activeWeapon.angle = data[2]
 		for bullet in bulletList:
-			if self.activeWeapon.name != "NeoGun":
+			if self.activeWeapon.name != "NeoGun" and self.activeWeapon.name != "NeoShotgun":
 				bullets.add(Bullet(start[0], start[1], bullet, owner, self.activeWeapon.damage))
 			else:
 				bullets.add(NeoBullet(start[0], start[1], bullet, owner, self.activeWeapon.damage))
@@ -1411,6 +1412,43 @@ class NeoGun(Gun):
 		self.description = "Introducing the latest technological marvel: the NeoGun! (All rights reserved)."
 		self.inventoryImage = pygame.image.load("Assets/neogun.png")
 		self.inventoryImage = pygame.transform.scale(self.inventoryImage, (400, 300))
+
+class NeoShotgun(Gun):
+	def __init__(self, owner):
+		super().__init__("Assets/neoshotgun.png", 2, owner, (4, 110, 65), 100, "NeoShotgun", (110, 40))
+		self.description = "Shoots a weak but large sum of piercing projectiles."
+		self.inventoryImage = pygame.image.load("Assets/neoshotgun.png")
+		self.inventoryImage = pygame.transform.scale(self.inventoryImage, (440, 160))
+
+	def fire(self):
+		#calculates the increment
+		increment = [self.barrel[0] - self.trajectory[0], self.barrel[1] - self.trajectory[1]]
+		hypotenuse = math.sqrt((increment[0] ** 2) + (increment[1] ** 2))
+		#Divides hypotenuse to work out the amount of seconds it would take to reach the mouse
+		seconds = hypotenuse / 10
+		bulletList = []
+		for count in range(2):
+			increment[count] = increment[count] * -1
+			increment[count] = increment[count] / seconds #divides the length of the distance by the number of seconds to get the distance per second
+		for count in range(6):
+			bulletList.append([])
+			for i in increment:
+				alter = random.randint(-4, 4)
+				bulletList[-1].append(i+alter)
+			check = False
+			for item in bulletList[count]:
+				if item > 4:
+					check = True
+			else:
+				while not check:
+					bulletList[count] = []
+					for i in increment:
+						alter = random.randint(-4, 4)
+						bulletList[-1].append(i + alter)
+					for item in bulletList[count]:
+						if item > 4 or item < -4:
+							check = True
+		return self.barrelMap, bulletList
 
 '''
 Name: priorityQueue
