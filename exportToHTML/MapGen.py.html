@@ -1,0 +1,473 @@
+<html>
+<head>
+<title>MapGen.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #f97bb0; font-weight: bold;}
+.s1 { color: #dfdfe0;}
+.s2 { color: #7f8c99;}
+.s3 { color: #d7c781;}
+.s4 { color: #ff806c;}
+.s5 { color: #629755; font-style: italic;}
+.s6 { color: #fcfcfc;}
+</style>
+</head>
+<body bgcolor="#292a30">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+MapGen.py</font>
+</center></td></tr></table>
+<pre><span class="s0">import </span><span class="s1">random, pygame, math</span>
+<span class="s0">from </span><span class="s1">xml.etree.ElementTree </span><span class="s0">import </span><span class="s1">XMLParser</span>
+<span class="s0">from </span><span class="s1">npcs </span><span class="s0">import </span><span class="s1">Monarch</span>
+<span class="s0">from </span><span class="s1">PIL </span><span class="s0">import </span><span class="s1">Image</span>
+
+
+<span class="s2">#--------------------------- OLD PERIMETER CODE (May want later) ---------------------------------------------------</span>
+<span class="s2"># perimeter = 2</span>
+<span class="s2"># for count in range(perimeter):#Horizontal perimeters</span>
+<span class="s2">#     bMap[count] = [&quot;DWater&quot; for i in range(SCREEN_WIDTH//TILE_SIZE)]</span>
+<span class="s2">#     bMap[((SCREEN_WIDTH//TILE_SIZE)-1)-count] = [&quot;DWater&quot; for i in range(SCREEN_WIDTH//TILE_SIZE)]</span>
+<span class="s2">#     bMap[count+perimeter] = [&quot;Water&quot; for i in range(SCREEN_WIDTH//TILE_SIZE)]</span>
+<span class="s2">#     bMap[((SCREEN_WIDTH // TILE_SIZE) - 1) - (count + perimeter)] = [&quot;Water&quot; for i in range(SCREEN_WIDTH // TILE_SIZE)]</span>
+<span class="s2">#     for j in range(perimeter):</span>
+<span class="s2">#         #Left side Dwater overide</span>
+<span class="s2">#         bMap[count + perimeter][j] = &quot;DWater&quot;</span>
+<span class="s2">#         bMap[((SCREEN_WIDTH // TILE_SIZE) - 1) - (count + perimeter)][j] = &quot;DWater&quot;</span>
+<span class="s2">#         #Right side</span>
+<span class="s2">#         bMap[count + perimeter][((SCREEN_WIDTH//TILE_SIZE)-1)-j] = &quot;DWater&quot;</span>
+<span class="s2">#         bMap[((SCREEN_WIDTH // TILE_SIZE) - 1) - (count + perimeter)][((SCREEN_WIDTH//TILE_SIZE)-1)-j] = &quot;DWater&quot;</span>
+<span class="s2">#     for i in range ((SCREEN_WIDTH//TILE_SIZE)-perimeter*4):#excludes the top and bottom perimeters #Vertical perimeters</span>
+<span class="s2">#         bMap[i+(perimeter*2)][count] = &quot;DWater&quot;</span>
+<span class="s2">#         bMap[i+(perimeter*2)][((SCREEN_WIDTH//TILE_SIZE)-1)-count] = &quot;DWater&quot;</span>
+<span class="s2">#         bMap[i+(perimeter*2)][count+perimeter] = &quot;Water&quot;</span>
+<span class="s2">#         bMap[i+(perimeter*2)][((SCREEN_WIDTH//TILE_SIZE)-1)-(count+perimeter)] = &quot;Water&quot;</span>
+<span class="s2">#-------------------------------------------------------------------------------------------------------------------------</span>
+
+
+
+<span class="s2"># biome = {False:(0, 0, 0), &quot;Plains&quot;:(0, 255, 0), &quot;Mountain&quot;:(170, 170, 170), &quot;HMountain&quot;:(255, 255, 255), &quot;Forest&quot;:(1, 107, 1), &quot;Water&quot;:(0, 0, 255), &quot;DWater&quot;:(0, 170, 170)}</span>
+
+<span class="s2"># pygame.display.init()</span>
+<span class="s1">SCREEN_WIDTH, SCREEN_HEIGHT = </span><span class="s3">800</span><span class="s1">, </span><span class="s3">800</span>
+<span class="s1">TILE_SIZE = SCREEN_WIDTH//</span><span class="s3">20</span>
+<span class="s1">TERRAIN_SIZE = (</span><span class="s3">800</span><span class="s1">, </span><span class="s3">800</span><span class="s1">)</span>
+<span class="s1">MAP_WIDTH = </span><span class="s3">20</span>
+
+<span class="s1">BIOME_IMGS = {</span><span class="s4">&quot;Plains&quot;</span><span class="s1">:Image.new(</span><span class="s4">&quot;RGB&quot;</span><span class="s1">, (TERRAIN_SIZE), (</span><span class="s3">0</span><span class="s1">, </span><span class="s3">255</span><span class="s1">, </span><span class="s3">0</span><span class="s1">)),</span>
+                <span class="s4">&quot;Mountain&quot;</span><span class="s1">:Image.new(</span><span class="s4">&quot;RGB&quot;</span><span class="s1">, (TERRAIN_SIZE), (</span><span class="s3">170</span><span class="s1">, </span><span class="s3">170</span><span class="s1">, </span><span class="s3">170</span><span class="s1">)),</span>
+                <span class="s4">&quot;HMountain&quot;</span><span class="s1">:Image.new(</span><span class="s4">&quot;RGB&quot;</span><span class="s1">, (TERRAIN_SIZE), (</span><span class="s3">255</span><span class="s1">, </span><span class="s3">255</span><span class="s1">, </span><span class="s3">255</span><span class="s1">)),</span>
+                <span class="s4">&quot;Forest&quot;</span><span class="s1">:Image.new(</span><span class="s4">&quot;RGB&quot;</span><span class="s1">, (TERRAIN_SIZE), (</span><span class="s3">1</span><span class="s1">, </span><span class="s3">107</span><span class="s1">, </span><span class="s3">1</span><span class="s1">)),</span>
+                <span class="s4">&quot;Water&quot;</span><span class="s1">:Image.new(</span><span class="s4">&quot;RGB&quot;</span><span class="s1">, (TERRAIN_SIZE), (</span><span class="s3">0</span><span class="s1">, </span><span class="s3">0</span><span class="s1">, </span><span class="s3">255</span><span class="s1">)),</span>
+                <span class="s4">&quot;DWater&quot;</span><span class="s1">:Image.new(</span><span class="s4">&quot;RGB&quot;</span><span class="s1">, (TERRAIN_SIZE), (</span><span class="s3">0</span><span class="s1">, </span><span class="s3">170</span><span class="s1">, </span><span class="s3">170</span><span class="s1">))}</span>
+
+<span class="s4">''' 
+Name: MapGenerator 
+Purpose: Used to generate maps, create map images and generate objects. 
+'''</span>
+<span class="s0">class </span><span class="s1">MapGenerator:</span>
+
+    <span class="s5">''' 
+    Name: __init__ 
+    Parameters: textMap:list, obstacles:list 
+    Returns: None 
+    Purpose: Constructor 
+    '''</span>
+    <span class="s0">def </span><span class="s1">__init__(self, textMap=</span><span class="s0">False</span><span class="s1">, obstacles = </span><span class="s0">False</span><span class="s1">):</span>
+        <span class="s1">self.mapWidth = </span><span class="s3">20</span>
+        <span class="s1">self.halfWidth = self.mapWidth // </span><span class="s3">2</span>
+        <span class="s1">self.biomes = [</span><span class="s4">&quot;Plains&quot;</span><span class="s1">, </span><span class="s4">&quot;Mountain&quot;</span><span class="s1">, </span><span class="s4">&quot;HMountain&quot;</span><span class="s1">, </span><span class="s4">&quot;Forest&quot;</span><span class="s1">, </span><span class="s4">&quot;Water&quot;</span><span class="s1">, </span><span class="s4">&quot;DWater&quot;</span><span class="s1">]</span><span class="s2">#List of all biomes possible</span>
+        <span class="s2">#Probabilities that are tied to each terrain</span>
+        <span class="s1">self.probability = {</span><span class="s0">False</span><span class="s1">:{</span><span class="s4">&quot;Plains&quot;</span><span class="s1">:</span><span class="s3">10</span><span class="s1">, </span><span class="s4">&quot;Mountain&quot;</span><span class="s1">:</span><span class="s3">6</span><span class="s1">, </span><span class="s4">&quot;HMountain&quot;</span><span class="s1">:</span><span class="s3">2</span><span class="s1">, </span><span class="s4">&quot;Forest&quot;</span><span class="s1">:</span><span class="s3">8</span><span class="s1">, </span><span class="s4">&quot;Water&quot;</span><span class="s1">:</span><span class="s3">6</span><span class="s1">, </span><span class="s4">&quot;DWater&quot;</span><span class="s1">:</span><span class="s3">4</span><span class="s1">, </span><span class="s0">False</span><span class="s1">:</span><span class="s3">0</span><span class="s1">},</span>
+              <span class="s4">&quot;Plains&quot;</span><span class="s1">:{</span><span class="s4">&quot;Plains&quot;</span><span class="s1">:</span><span class="s3">25</span><span class="s1">, </span><span class="s4">&quot;Mountain&quot;</span><span class="s1">:</span><span class="s3">0</span><span class="s1">, </span><span class="s4">&quot;HMountain&quot;</span><span class="s1">:</span><span class="s3">0</span><span class="s1">, </span><span class="s4">&quot;Forest&quot;</span><span class="s1">:</span><span class="s3">15</span><span class="s1">, </span><span class="s4">&quot;Water&quot;</span><span class="s1">:</span><span class="s3">5</span><span class="s1">, </span><span class="s4">&quot;DWater&quot;</span><span class="s1">:</span><span class="s3">0</span><span class="s1">, </span><span class="s0">False</span><span class="s1">:</span><span class="s3">0</span><span class="s1">},</span>
+              <span class="s4">&quot;Mountain&quot;</span><span class="s1">:{</span><span class="s4">&quot;Plains&quot;</span><span class="s1">:</span><span class="s3">0</span><span class="s1">, </span><span class="s4">&quot;Mountain&quot;</span><span class="s1">:</span><span class="s3">20</span><span class="s1">, </span><span class="s4">&quot;HMountain&quot;</span><span class="s1">:</span><span class="s3">15</span><span class="s1">, </span><span class="s4">&quot;Forest&quot;</span><span class="s1">:</span><span class="s3">15</span><span class="s1">, </span><span class="s4">&quot;Water&quot;</span><span class="s1">:</span><span class="s3">0</span><span class="s1">, </span><span class="s4">&quot;DWater&quot;</span><span class="s1">:</span><span class="s3">0</span><span class="s1">, </span><span class="s0">False</span><span class="s1">:</span><span class="s3">0</span><span class="s1">},</span>
+              <span class="s4">&quot;HMountain&quot;</span><span class="s1">:{</span><span class="s4">&quot;Plains&quot;</span><span class="s1">:</span><span class="s3">0</span><span class="s1">, </span><span class="s4">&quot;Mountain&quot;</span><span class="s1">:</span><span class="s3">35</span><span class="s1">, </span><span class="s4">&quot;HMountain&quot;</span><span class="s1">:</span><span class="s3">15</span><span class="s1">, </span><span class="s4">&quot;Forest&quot;</span><span class="s1">:</span><span class="s3">0</span><span class="s1">, </span><span class="s4">&quot;Water&quot;</span><span class="s1">:</span><span class="s3">0</span><span class="s1">, </span><span class="s4">&quot;DWater&quot;</span><span class="s1">:</span><span class="s3">0</span><span class="s1">, </span><span class="s0">False</span><span class="s1">:</span><span class="s3">0</span><span class="s1">},</span>
+              <span class="s4">&quot;Forest&quot;</span><span class="s1">:{</span><span class="s4">&quot;Plains&quot;</span><span class="s1">:</span><span class="s3">15</span><span class="s1">, </span><span class="s4">&quot;Mountain&quot;</span><span class="s1">:</span><span class="s3">18</span><span class="s1">, </span><span class="s4">&quot;HMountain&quot;</span><span class="s1">:</span><span class="s3">0</span><span class="s1">, </span><span class="s4">&quot;Forest&quot;</span><span class="s1">:</span><span class="s3">25</span><span class="s1">, </span><span class="s4">&quot;Water&quot;</span><span class="s1">:</span><span class="s3">0</span><span class="s1">, </span><span class="s4">&quot;DWater&quot;</span><span class="s1">:</span><span class="s3">0</span><span class="s1">, </span><span class="s0">False</span><span class="s1">:</span><span class="s3">0</span><span class="s1">},</span>
+              <span class="s4">&quot;Water&quot;</span><span class="s1">:{</span><span class="s4">&quot;Plains&quot;</span><span class="s1">:</span><span class="s3">15</span><span class="s1">, </span><span class="s4">&quot;Mountain&quot;</span><span class="s1">:</span><span class="s3">0</span><span class="s1">, </span><span class="s4">&quot;HMountain&quot;</span><span class="s1">:</span><span class="s3">0</span><span class="s1">, </span><span class="s4">&quot;Forest&quot;</span><span class="s1">:</span><span class="s3">0</span><span class="s1">, </span><span class="s4">&quot;Water&quot;</span><span class="s1">:</span><span class="s3">15</span><span class="s1">, </span><span class="s4">&quot;DWater&quot;</span><span class="s1">:</span><span class="s3">10</span><span class="s1">, </span><span class="s0">False</span><span class="s1">:</span><span class="s3">0</span><span class="s1">},</span>
+              <span class="s4">&quot;DWater&quot;</span><span class="s1">:{</span><span class="s4">&quot;Plains&quot;</span><span class="s1">:</span><span class="s3">0</span><span class="s1">, </span><span class="s4">&quot;Mountain&quot;</span><span class="s1">:</span><span class="s3">0</span><span class="s1">, </span><span class="s4">&quot;HMountain&quot;</span><span class="s1">:</span><span class="s3">0</span><span class="s1">, </span><span class="s4">&quot;Forest&quot;</span><span class="s1">:</span><span class="s3">0</span><span class="s1">, </span><span class="s4">&quot;Water&quot;</span><span class="s1">:</span><span class="s3">30</span><span class="s1">, </span><span class="s4">&quot;DWater&quot;</span><span class="s1">:</span><span class="s3">15</span><span class="s1">, </span><span class="s0">False</span><span class="s1">:</span><span class="s3">0</span><span class="s1">}}</span>
+        <span class="s2">#Influences</span>
+        <span class="s1">self.conflictions = {</span><span class="s0">False</span><span class="s1">:{</span><span class="s4">&quot;Plains&quot;</span><span class="s1">:</span><span class="s3">0</span><span class="s1">, </span><span class="s4">&quot;Mountain&quot;</span><span class="s1">:</span><span class="s3">0</span><span class="s1">, </span><span class="s4">&quot;HMountain&quot;</span><span class="s1">:</span><span class="s3">0</span><span class="s1">, </span><span class="s4">&quot;Forest&quot;</span><span class="s1">:</span><span class="s3">0</span><span class="s1">, </span><span class="s4">&quot;Water&quot;</span><span class="s1">:</span><span class="s3">0</span><span class="s1">, </span><span class="s4">&quot;DWater&quot;</span><span class="s1">:</span><span class="s3">0</span><span class="s1">, </span><span class="s0">False</span><span class="s1">:</span><span class="s3">0</span><span class="s1">},</span>
+                      <span class="s4">&quot;Plains&quot;</span><span class="s1">:{</span><span class="s4">&quot;Plains&quot;</span><span class="s1">:</span><span class="s3">0</span><span class="s1">, </span><span class="s4">&quot;Mountain&quot;</span><span class="s1">:</span><span class="s3">1</span><span class="s1">, </span><span class="s4">&quot;HMountain&quot;</span><span class="s1">:</span><span class="s3">1</span><span class="s1">, </span><span class="s4">&quot;Forest&quot;</span><span class="s1">:</span><span class="s3">0</span><span class="s1">, </span><span class="s4">&quot;Water&quot;</span><span class="s1">:</span><span class="s3">0</span><span class="s1">, </span><span class="s4">&quot;DWater&quot;</span><span class="s1">:</span><span class="s3">1</span><span class="s1">, </span><span class="s0">False</span><span class="s1">:</span><span class="s3">0</span><span class="s1">},</span>
+                      <span class="s4">&quot;Mountain&quot;</span><span class="s1">:{</span><span class="s4">&quot;Plains&quot;</span><span class="s1">:</span><span class="s3">1</span><span class="s1">, </span><span class="s4">&quot;Mountain&quot;</span><span class="s1">:</span><span class="s3">0</span><span class="s1">, </span><span class="s4">&quot;HMountain&quot;</span><span class="s1">:</span><span class="s3">0</span><span class="s1">, </span><span class="s4">&quot;Forest&quot;</span><span class="s1">:</span><span class="s3">0</span><span class="s1">, </span><span class="s4">&quot;Water&quot;</span><span class="s1">:</span><span class="s3">1</span><span class="s1">, </span><span class="s4">&quot;DWater&quot;</span><span class="s1">:</span><span class="s3">1</span><span class="s1">, </span><span class="s0">False</span><span class="s1">:</span><span class="s3">0</span><span class="s1">},</span>
+                      <span class="s4">&quot;HMountain&quot;</span><span class="s1">:{</span><span class="s4">&quot;Plains&quot;</span><span class="s1">:</span><span class="s3">1</span><span class="s1">, </span><span class="s4">&quot;Mountain&quot;</span><span class="s1">:</span><span class="s3">0</span><span class="s1">, </span><span class="s4">&quot;HMountain&quot;</span><span class="s1">:</span><span class="s3">0</span><span class="s1">, </span><span class="s4">&quot;Forest&quot;</span><span class="s1">:</span><span class="s3">1</span><span class="s1">, </span><span class="s4">&quot;Water&quot;</span><span class="s1">:</span><span class="s3">1</span><span class="s1">, </span><span class="s4">&quot;DWater&quot;</span><span class="s1">:</span><span class="s3">1</span><span class="s1">, </span><span class="s0">False</span><span class="s1">:</span><span class="s3">0</span><span class="s1">},</span>
+                      <span class="s4">&quot;Forest&quot;</span><span class="s1">:{</span><span class="s4">&quot;Plains&quot;</span><span class="s1">:</span><span class="s3">0</span><span class="s1">, </span><span class="s4">&quot;Mountain&quot;</span><span class="s1">:</span><span class="s3">0</span><span class="s1">, </span><span class="s4">&quot;HMountain&quot;</span><span class="s1">:</span><span class="s3">1</span><span class="s1">, </span><span class="s4">&quot;Forest&quot;</span><span class="s1">:</span><span class="s3">0</span><span class="s1">, </span><span class="s4">&quot;Water&quot;</span><span class="s1">:</span><span class="s3">1</span><span class="s1">, </span><span class="s4">&quot;DWater&quot;</span><span class="s1">:</span><span class="s3">1</span><span class="s1">, </span><span class="s0">False</span><span class="s1">:</span><span class="s3">0</span><span class="s1">},</span>
+                      <span class="s4">&quot;Water&quot;</span><span class="s1">:{</span><span class="s4">&quot;Plains&quot;</span><span class="s1">:</span><span class="s3">0</span><span class="s1">, </span><span class="s4">&quot;Mountain&quot;</span><span class="s1">:</span><span class="s3">1</span><span class="s1">, </span><span class="s4">&quot;HMountain&quot;</span><span class="s1">:</span><span class="s3">1</span><span class="s1">, </span><span class="s4">&quot;Forest&quot;</span><span class="s1">:</span><span class="s3">1</span><span class="s1">, </span><span class="s4">&quot;Water&quot;</span><span class="s1">:</span><span class="s3">0</span><span class="s1">, </span><span class="s4">&quot;DWater&quot;</span><span class="s1">:</span><span class="s3">0</span><span class="s1">, </span><span class="s0">False</span><span class="s1">:</span><span class="s3">0</span><span class="s1">},</span>
+                      <span class="s4">&quot;DWater&quot;</span><span class="s1">:{</span><span class="s4">&quot;Plains&quot;</span><span class="s1">:</span><span class="s3">1</span><span class="s1">, </span><span class="s4">&quot;Mountain&quot;</span><span class="s1">:</span><span class="s3">1</span><span class="s1">, </span><span class="s4">&quot;HMountain&quot;</span><span class="s1">:</span><span class="s3">1</span><span class="s1">, </span><span class="s4">&quot;Forest&quot;</span><span class="s1">:</span><span class="s3">1</span><span class="s1">, </span><span class="s4">&quot;Water&quot;</span><span class="s1">:</span><span class="s3">0</span><span class="s1">, </span><span class="s4">&quot;DWater&quot;</span><span class="s1">:</span><span class="s3">0</span><span class="s1">, </span><span class="s0">False</span><span class="s1">:</span><span class="s3">0</span><span class="s1">}}</span>
+        <span class="s1">self.NPCs = pygame.sprite.Group()</span>
+        <span class="s0">if not </span><span class="s1">textMap:</span>
+            <span class="s1">self.textMap = [[</span><span class="s0">False for </span><span class="s1">count </span><span class="s0">in </span><span class="s1">range(self.mapWidth)] </span><span class="s0">for </span><span class="s1">i </span><span class="s0">in </span><span class="s1">range(self.mapWidth)]</span><span class="s2">#Establishes a plain map</span>
+        <span class="s0">else</span><span class="s1">:</span>
+            <span class="s1">self.textMap = textMap</span>
+        <span class="s0">if not </span><span class="s1">obstacles:</span>
+            <span class="s1">self.obstacles = []</span>
+        <span class="s0">else</span><span class="s1">:</span>
+            <span class="s1">self.obstacles = obstacles</span>
+
+        <span class="s4">''' 
+        Name: generate 
+        Parameters: None 
+        Returns: self.textMap:list, self.obstacles:list, self.NPCs:sprite group 
+        Purpose: This generates a map using soft constraint satisfaction and then generates obstacles. Constraint satisfaction  
+        involves finding the tile that creates the least conflicts in order to generate a somewhat natural map while still  
+        being random. This works by selecting random tiles in order to (prevent artifacting) and then choosing a random terrain  
+        which is influenced by the probabilities of surropunding tiles.   
+        '''</span>
+    <span class="s0">def </span><span class="s1">generate(self):</span><span class="s2">#Generates a map</span>
+        <span class="s1">success = </span><span class="s0">False</span>
+        <span class="s0">while not </span><span class="s1">success:</span>
+            <span class="s2"># This checks the cells of the map in a spiral fashion</span>
+            <span class="s1">rotations = </span><span class="s3">0</span>
+            <span class="s1">width = </span><span class="s3">2</span>
+            <span class="s1">length = </span><span class="s3">0</span>
+            <span class="s0">for </span><span class="s1">count </span><span class="s0">in </span><span class="s1">range(self.mapWidth ** </span><span class="s3">2</span><span class="s1">):  </span><span class="s2"># Multiplies width by height to get count</span>
+                <span class="s0">if </span><span class="s1">length == width - </span><span class="s3">1</span><span class="s1">:</span>
+                    <span class="s1">rotations += </span><span class="s3">1</span>
+                    <span class="s1">length = </span><span class="s3">0</span>
+                <span class="s0">if </span><span class="s1">rotations == </span><span class="s3">4</span><span class="s1">:</span>
+                    <span class="s1">width += </span><span class="s3">2</span>
+                    <span class="s1">rotations = </span><span class="s3">0</span>
+                <span class="s0">if </span><span class="s1">rotations == </span><span class="s3">0</span><span class="s1">:  </span><span class="s2"># Top side</span>
+                    <span class="s1">cellX = (self.halfWidth) - (width // </span><span class="s3">2</span><span class="s1">) + length</span>
+                    <span class="s1">cellY = (self.halfWidth) - (width // </span><span class="s3">2</span><span class="s1">)</span>
+                <span class="s0">elif </span><span class="s1">rotations == </span><span class="s3">1</span><span class="s1">:  </span><span class="s2"># Right side</span>
+                    <span class="s1">cellX = (self.halfWidth) + (width // </span><span class="s3">2</span><span class="s1">) - </span><span class="s3">1</span>
+                    <span class="s1">cellY = (self.halfWidth) - (width // </span><span class="s3">2</span><span class="s1">) + length</span>
+                <span class="s0">elif </span><span class="s1">rotations == </span><span class="s3">2</span><span class="s1">:  </span><span class="s2"># Bottom side</span>
+                    <span class="s1">cellX = ((self.halfWidth) + (width // </span><span class="s3">2</span><span class="s1">) - </span><span class="s3">1</span><span class="s1">) - length</span>
+                    <span class="s1">cellY = (self.halfWidth) + (width // </span><span class="s3">2</span><span class="s1">) - </span><span class="s3">1</span>
+                <span class="s0">elif </span><span class="s1">rotations == </span><span class="s3">3</span><span class="s1">:  </span><span class="s2"># Left side</span>
+                    <span class="s1">cellX = (self.halfWidth) - (width // </span><span class="s3">2</span><span class="s1">)</span>
+                    <span class="s1">cellY = (((self.halfWidth) + (width // </span><span class="s3">2</span><span class="s1">)) - </span><span class="s3">1</span><span class="s1">) - length</span>
+                <span class="s1">length += </span><span class="s3">1</span>
+
+                <span class="s1">probs = self.checkProbability(cellX, cellY)[</span><span class="s3">0</span><span class="s1">]</span>
+                <span class="s0">if </span><span class="s1">self.textMap[cellY][cellX] == </span><span class="s0">False</span><span class="s1">:  </span><span class="s2"># If the cell is undefined</span>
+                    <span class="s1">bestType = </span><span class="s0">False</span>
+                    <span class="s1">leastConflicts = </span><span class="s3">99</span>
+
+                    <span class="s2"># This creates a list of ranges for each probability</span>
+                    <span class="s1">pool = </span><span class="s3">0</span>
+                    <span class="s1">probabilities = []</span>
+                    <span class="s1">count = </span><span class="s3">0</span>
+                    <span class="s1">stagger = </span><span class="s3">0</span>
+                    <span class="s0">for </span><span class="s1">key </span><span class="s0">in </span><span class="s1">probs:</span>
+                        <span class="s0">if </span><span class="s1">count != </span><span class="s3">0</span><span class="s1">:</span>
+                            <span class="s1">pool += probs[key]</span>
+                            <span class="s1">probabilities.append([stagger, stagger + probs[key]])</span>
+                        <span class="s1">stagger += probs[key]</span>
+                        <span class="s1">count += </span><span class="s3">1</span>
+
+                    <span class="s0">for </span><span class="s1">count </span><span class="s0">in </span><span class="s1">range(</span><span class="s3">2</span><span class="s1">):</span>
+                        <span class="s1">num = random.randint(</span><span class="s3">0</span><span class="s1">, pool - </span><span class="s3">1</span><span class="s1">)</span><span class="s2"># gens a random number in the range of all probabilities combined</span>
+                        <span class="s2"># Selects the biome which the random number is in range of</span>
+                        <span class="s1">found = </span><span class="s0">False</span>
+                        <span class="s1">count = </span><span class="s3">0</span>
+                        <span class="s0">while not </span><span class="s1">found:</span>
+                            <span class="s0">if </span><span class="s1">num </span><span class="s0">in </span><span class="s1">range(probabilities[count][</span><span class="s3">0</span><span class="s1">], probabilities[count][</span><span class="s3">1</span><span class="s1">]):</span>
+                                <span class="s1">found = </span><span class="s0">True</span>
+                                <span class="s1">tTerrain = self.biomes[count]</span>
+                            <span class="s1">count += </span><span class="s3">1</span>
+
+                        <span class="s1">self.textMap[cellY][cellX] = tTerrain</span>
+                        <span class="s1">conflicts = self.checkProbability(cellX, cellY)[</span><span class="s3">1</span><span class="s1">]</span>
+                        <span class="s0">if </span><span class="s1">conflicts &lt; leastConflicts:</span><span class="s2"># if the terrain is more likely than the current most likely</span>
+                            <span class="s1">leastConflicts = conflicts</span>
+                            <span class="s1">bestType = tTerrain</span>
+                    <span class="s1">self.textMap[cellY][cellX] = bestType</span>
+            <span class="s1">success = self.biomeCheck()</span>
+            <span class="s0">if not </span><span class="s1">success:</span><span class="s2">#Clears map so that the algorithm can retry</span>
+                <span class="s1">self.clearMap()</span>
+        <span class="s1">self.obstacleGen()</span>
+        <span class="s0">return </span><span class="s1">self.textMap, self.obstacles, self.NPCs</span>
+
+    <span class="s4">''' 
+    Name: checkProbability 
+    Parameters: x:int, y:int 
+    Returns: probs:dictionary, conflicts:int 
+    Purpose: This function will calculate the probabilities using the surrounding tiles to the attached tile and calculate how many conflicts are generated. 
+    '''</span>
+    <span class="s0">def </span><span class="s1">checkProbability(self, x, y):</span><span class="s2">#Gets a pool of probabilities</span>
+        <span class="s1">area = </span><span class="s3">3</span>
+        <span class="s1">conflicts = </span><span class="s3">0</span>
+        <span class="s1">probs = {</span><span class="s0">False</span><span class="s1">:</span><span class="s3">0</span><span class="s1">, </span><span class="s4">&quot;Plains&quot;</span><span class="s1">:</span><span class="s3">0</span><span class="s1">, </span><span class="s4">&quot;Mountain&quot;</span><span class="s1">:</span><span class="s3">0</span><span class="s1">, </span><span class="s4">&quot;HMountain&quot;</span><span class="s1">:</span><span class="s3">0</span><span class="s1">, </span><span class="s4">&quot;Forest&quot;</span><span class="s1">:</span><span class="s3">0</span><span class="s1">, </span><span class="s4">&quot;Water&quot;</span><span class="s1">:</span><span class="s3">0</span><span class="s1">, </span><span class="s4">&quot;DWater&quot;</span><span class="s1">:</span><span class="s3">0</span><span class="s1">}</span><span class="s2">#Dictionary of probability for each terrain based of surrounding terrain</span>
+        <span class="s0">for </span><span class="s1">xC </span><span class="s0">in </span><span class="s1">range((x - area), (x + area)):</span><span class="s2">#This will cycle the 3 cells to the left and the right of the cell aswell as the cell itself</span>
+            <span class="s0">for </span><span class="s1">yC </span><span class="s0">in </span><span class="s1">range(y - area, y + area):</span>
+                <span class="s1">tempX = xC%self.mapWidth</span>
+                <span class="s1">tempY = yC%self.mapWidth</span>
+                <span class="s1">conflicts += self.conflictions[self.textMap[y][x]][self.textMap[tempY][tempX]]</span>
+                <span class="s0">for </span><span class="s1">key </span><span class="s0">in </span><span class="s1">self.probability:</span>
+                    <span class="s1">probs[key] += self.probability[self.textMap[tempX][tempY]][key]</span><span class="s2">#Adds the probabilities from this cell</span>
+        <span class="s0">return </span><span class="s1">probs, conflicts</span>
+
+    <span class="s4">''' 
+    Name: biomeCheck 
+    Parameters: None 
+    Returns: safe:boolean 
+    Purpose: Ensures that there is at least a certain amount of each type of tile. 
+    '''</span>
+    <span class="s0">def </span><span class="s1">biomeCheck(self):</span>
+        <span class="s1">biomeCount = {</span><span class="s4">&quot;Plains&quot;</span><span class="s1">: </span><span class="s3">0</span><span class="s1">, </span><span class="s4">&quot;Mountain&quot;</span><span class="s1">: </span><span class="s3">0</span><span class="s1">, </span><span class="s4">&quot;HMountain&quot;</span><span class="s1">: </span><span class="s3">0</span><span class="s1">,</span>
+                      <span class="s4">&quot;Forest&quot;</span><span class="s1">: </span><span class="s3">0</span><span class="s1">, </span><span class="s4">&quot;Water&quot;</span><span class="s1">: </span><span class="s3">0</span><span class="s1">, </span><span class="s4">&quot;DWater&quot;</span><span class="s1">: </span><span class="s3">0</span><span class="s1">}</span>
+        <span class="s0">for </span><span class="s1">y </span><span class="s0">in </span><span class="s1">self.textMap:</span>
+            <span class="s0">for </span><span class="s1">x </span><span class="s0">in </span><span class="s1">y:</span>
+                <span class="s0">for </span><span class="s1">bi </span><span class="s0">in </span><span class="s1">biomeCount:</span>
+                    <span class="s0">if </span><span class="s1">bi == x:</span>
+                        <span class="s1">biomeCount[bi] += </span><span class="s3">1</span>
+        <span class="s1">safe = </span><span class="s0">True</span>
+        <span class="s0">for </span><span class="s1">bi </span><span class="s0">in </span><span class="s1">biomeCount:</span>
+            <span class="s0">if </span><span class="s1">biomeCount[bi] &lt; </span><span class="s3">7</span><span class="s1">:</span>
+                <span class="s1">safe  = </span><span class="s0">False</span>
+        <span class="s0">return </span><span class="s1">safe</span>
+
+    <span class="s4">''' 
+    Name: clearMap 
+    Parameters: None 
+    Returns: None 
+    Purpose: This clears the map and will only be called if a map is unsatisfactory.  
+    '''</span>
+    <span class="s0">def </span><span class="s1">clearMap(self):</span>
+        <span class="s1">self.textMap = [[</span><span class="s0">False for </span><span class="s1">count </span><span class="s0">in </span><span class="s1">range(self.mapWidth)] </span><span class="s0">for </span><span class="s1">i </span><span class="s0">in </span><span class="s1">range(self.mapWidth)]</span>
+
+    <span class="s4">''' 
+    Name: text2Tile 
+    Parameters: None 
+    Returns: None 
+    Purpose: This creates Tiles for each terrain in the maps. 
+    '''</span>
+    <span class="s0">def </span><span class="s1">text2Tile(self):</span>
+        <span class="s0">for </span><span class="s1">x </span><span class="s0">in </span><span class="s1">range(self.mapWidth):</span>
+            <span class="s0">for </span><span class="s1">y </span><span class="s0">in </span><span class="s1">range(self.mapWidth):</span>
+                <span class="s1">self.textMap[y][x] = Tile(self.textMap[y][x])</span>
+
+    <span class="s4">''' 
+    Name: makeimage 
+    Parameters: None 
+    Returns: None 
+    Purpose: This creates an image of the map. 
+    '''</span>
+    <span class="s0">def </span><span class="s1">makeimage(self):</span>
+        <span class="s1">self.imgMap = Image.new( </span><span class="s4">'RGB'</span><span class="s1">, ((self.mapWidth*TERRAIN_SIZE[</span><span class="s3">0</span><span class="s1">]),(self.mapWidth*TERRAIN_SIZE[</span><span class="s3">0</span><span class="s1">])), </span><span class="s4">&quot;red&quot;</span><span class="s1">)</span>
+        <span class="s0">for </span><span class="s1">x </span><span class="s0">in </span><span class="s1">range(self.mapWidth):</span>
+            <span class="s0">for </span><span class="s1">y </span><span class="s0">in </span><span class="s1">range(self.mapWidth):</span>
+                <span class="s1">self.imgMap.paste(self.textMap[y][x].img, (x*TERRAIN_SIZE[</span><span class="s3">0</span><span class="s1">], y*TERRAIN_SIZE[</span><span class="s3">0</span><span class="s1">]))</span>
+        <span class="s1">self.imgMap.save(</span><span class="s4">&quot;map.png&quot;</span><span class="s1">)</span>
+
+    <span class="s4">''' 
+    Name: obstacleGen 
+    Parameters: None 
+    Returns: self.obstacles:list 
+    Purpose: This generates obstacles and also instantiates NPCs for any houses. 
+    '''</span>
+    <span class="s0">def </span><span class="s1">obstacleGen(self):</span>
+        <span class="s1">used = []</span>
+        <span class="s1">c = </span><span class="s3">0</span>
+        <span class="s0">for </span><span class="s1">count </span><span class="s0">in </span><span class="s1">range(</span><span class="s3">3</span><span class="s1">):</span>
+            <span class="s1">x = random.randint(</span><span class="s3">0</span><span class="s1">, self.mapWidth-</span><span class="s3">1</span><span class="s1">)</span>
+            <span class="s1">y = random.randint(</span><span class="s3">0</span><span class="s1">, self.mapWidth-</span><span class="s3">1</span><span class="s1">)</span>
+            <span class="s0">while </span><span class="s1">self.textMap[y][x] == </span><span class="s4">&quot;DWater&quot; </span><span class="s0">or </span><span class="s1">self.textMap[y][x] == </span><span class="s4">&quot;Water&quot; </span><span class="s0">or </span><span class="s1">(x, y) </span><span class="s0">in </span><span class="s1">used:</span>
+                <span class="s1">x = random.randint(</span><span class="s3">0</span><span class="s1">, self.mapWidth - </span><span class="s3">1</span><span class="s1">)</span>
+                <span class="s1">y = random.randint(</span><span class="s3">0</span><span class="s1">, self.mapWidth - </span><span class="s3">1</span><span class="s1">)</span>
+            <span class="s1">self.NPCs.add(Monarch((x * TERRAIN_SIZE[</span><span class="s3">0</span><span class="s1">]) + (TILE_SIZE * </span><span class="s3">8</span><span class="s1">),</span>
+                                  <span class="s1">(y * TERRAIN_SIZE[</span><span class="s3">1</span><span class="s1">]) + (TILE_SIZE * </span><span class="s3">8</span><span class="s1">)))</span>
+            <span class="s1">self.obstacles.append((((x * TERRAIN_SIZE[</span><span class="s3">0</span><span class="s1">]), (y * TERRAIN_SIZE[</span><span class="s3">1</span><span class="s1">]), self.NPCs.sprites()[c].id), </span><span class="s4">&quot;House&quot;</span><span class="s1">))</span>
+            <span class="s1">c += </span><span class="s3">1</span>
+            <span class="s1">used.append((x, y))</span>
+        <span class="s0">for </span><span class="s1">count </span><span class="s0">in </span><span class="s1">range(self.mapWidth//</span><span class="s3">2</span><span class="s1">):</span>
+            <span class="s1">ranX = random.randint(</span><span class="s3">0</span><span class="s1">, self.mapWidth-</span><span class="s3">1</span><span class="s1">)</span>
+            <span class="s1">ranY = random.randint(</span><span class="s3">0</span><span class="s1">, self.mapWidth-</span><span class="s3">1</span><span class="s1">)</span>
+            <span class="s0">while  </span><span class="s1">self.textMap[ranY][ranX] != </span><span class="s4">&quot;Plains&quot; </span><span class="s0">or </span><span class="s1">(ranX, ranY) </span><span class="s0">in </span><span class="s1">used:</span>
+                <span class="s1">ranX = random.randint(</span><span class="s3">0</span><span class="s1">, self.mapWidth - </span><span class="s3">1</span><span class="s1">)</span>
+                <span class="s1">ranY = random.randint(</span><span class="s3">0</span><span class="s1">, self.mapWidth - </span><span class="s3">1</span><span class="s1">)</span>
+            <span class="s1">used.append((ranX, ranY))</span>
+            <span class="s1">ranX = ranX*TERRAIN_SIZE[</span><span class="s3">0</span><span class="s1">]+TERRAIN_SIZE[</span><span class="s3">0</span><span class="s1">]//</span><span class="s3">2</span>
+            <span class="s1">ranY = ranY*TERRAIN_SIZE[</span><span class="s3">0</span><span class="s1">]+TERRAIN_SIZE[</span><span class="s3">0</span><span class="s1">]//</span><span class="s3">2</span>
+            <span class="s1">self.obstacles.append(((ranX, ranY), </span><span class="s4">&quot;Grave&quot;</span><span class="s1">))</span>
+
+        <span class="s0">for </span><span class="s1">count </span><span class="s0">in </span><span class="s1">range(self.mapWidth//</span><span class="s3">2</span><span class="s1">):</span>
+            <span class="s1">ranX = random.randint(</span><span class="s3">0</span><span class="s1">, self.mapWidth-</span><span class="s3">1</span><span class="s1">)</span>
+            <span class="s1">ranY = random.randint(</span><span class="s3">0</span><span class="s1">, self.mapWidth-</span><span class="s3">1</span><span class="s1">)</span>
+            <span class="s0">while  </span><span class="s1">self.textMap[ranY][ranX] != </span><span class="s4">&quot;Forest&quot; </span><span class="s0">or </span><span class="s1">(ranX, ranY) </span><span class="s0">in </span><span class="s1">used:</span>
+                <span class="s1">ranX = random.randint(</span><span class="s3">0</span><span class="s1">, self.mapWidth - </span><span class="s3">1</span><span class="s1">)</span>
+                <span class="s1">ranY = random.randint(</span><span class="s3">0</span><span class="s1">, self.mapWidth - </span><span class="s3">1</span><span class="s1">)</span>
+            <span class="s1">num = random.randint(</span><span class="s3">1</span><span class="s1">,</span><span class="s3">2</span><span class="s1">)</span>
+            <span class="s0">for </span><span class="s1">count </span><span class="s0">in </span><span class="s1">range(</span><span class="s3">0</span><span class="s1">, num):</span>
+                <span class="s1">ranXo = ranX*TERRAIN_SIZE[</span><span class="s3">0</span><span class="s1">]+((TERRAIN_SIZE[</span><span class="s3">0</span><span class="s1">]//</span><span class="s3">3</span><span class="s1">) * random.randint(</span><span class="s3">1</span><span class="s1">,</span><span class="s3">2</span><span class="s1">))</span>
+                <span class="s1">ranYo = ranY*TERRAIN_SIZE[</span><span class="s3">0</span><span class="s1">]+((TERRAIN_SIZE[</span><span class="s3">0</span><span class="s1">]//</span><span class="s3">3</span><span class="s1">) * random.randint(</span><span class="s3">1</span><span class="s1">,</span><span class="s3">2</span><span class="s1">))</span>
+                <span class="s1">self.obstacles.append(((ranXo, ranYo), </span><span class="s4">&quot;Bush&quot;</span><span class="s1">))</span>
+        <span class="s0">return </span><span class="s1">self.obstacles</span>
+
+    <span class="s4">''' 
+    Name: createObstacles 
+    Parameters: None 
+    Returns: None 
+    Purpose: Instantiates buildings for each obstacle in obstacles. 
+    '''</span>
+    <span class="s0">def </span><span class="s1">createObstacles(self):</span>
+        <span class="s1">self.obstacleList = pygame.sprite.Group()</span>
+        <span class="s0">for </span><span class="s1">obstacle </span><span class="s0">in </span><span class="s1">self.obstacles:</span>
+            <span class="s0">if </span><span class="s1">obstacle[</span><span class="s3">1</span><span class="s1">] == </span><span class="s4">&quot;House&quot;</span><span class="s1">:</span>
+                <span class="s1">self.obstacleList.add(House(*obstacle[</span><span class="s3">0</span><span class="s1">]))</span>
+            <span class="s0">elif </span><span class="s1">obstacle[</span><span class="s3">1</span><span class="s1">] == </span><span class="s4">&quot;Grave&quot;</span><span class="s1">:</span>
+                <span class="s1">self.obstacleList.add(Grave(*obstacle[</span><span class="s3">0</span><span class="s1">]))</span>
+            <span class="s0">elif </span><span class="s1">obstacle[</span><span class="s3">1</span><span class="s1">] == </span><span class="s4">&quot;Bush&quot;</span><span class="s1">:</span>
+                <span class="s1">self.obstacleList.add(Bush(*obstacle[</span><span class="s3">0</span><span class="s1">]))</span>
+
+    <span class="s4">''' 
+    Name: finalise 
+    Parameters: None 
+    Returns: imgMap:image, obstacleList:sprite group 
+    Purpose: Carries out all the steps needed after the initial map creation to finish it. 
+    '''</span>
+    <span class="s0">def </span><span class="s1">finalise(self):</span>
+        <span class="s1">self.text2Tile()</span>
+        <span class="s1">self.makeimage()</span>
+        <span class="s1">self.createObstacles()</span>
+        <span class="s0">return </span><span class="s1">self.imgMap, self.obstacleList</span>
+
+    <span class="s2"># def drawMap(self, screen):</span>
+    <span class="s2">#     self.blocks = []</span>
+    <span class="s2">#     screen.fill((255, 0, 0))</span>
+    <span class="s2">#     rotations = 0</span>
+    <span class="s2">#     width = 2</span>
+    <span class="s2">#     length = 0</span>
+    <span class="s2">#     for count in range(self.mapWidth**2):  # Multiplies width by height to get count</span>
+    <span class="s2">#         if length == width - 1:</span>
+    <span class="s2">#             rotations += 1</span>
+    <span class="s2">#             length = 0</span>
+    <span class="s2">#         if rotations == 4:</span>
+    <span class="s2">#             width += 2</span>
+    <span class="s2">#             rotations = 0</span>
+    <span class="s2">#         if rotations == 0:  # Top side</span>
+    <span class="s2">#             cellX = (self.halfWidth) - (width // 2) + length</span>
+    <span class="s2">#             cellY = (self.halfWidth) - (width // 2)</span>
+    <span class="s2">#         elif rotations == 1:  # Right side</span>
+    <span class="s2">#             cellX = (self.halfWidth) + (width // 2) - 1</span>
+    <span class="s2">#             cellY = (self.halfWidth) - (width // 2) + length</span>
+    <span class="s2">#         elif rotations == 2:  # Bottom side</span>
+    <span class="s2">#             cellX = ((self.halfWidth) + (width // 2) - 1) - length</span>
+    <span class="s2">#             cellY = (self.halfWidth) + (width // 2) - 1</span>
+    <span class="s2">#         elif rotations == 3:  # Left side</span>
+    <span class="s2">#             cellX = (self.halfWidth) - (width // 2)</span>
+    <span class="s2">#             cellY = (((self.halfWidth) + (width // 2)) - 1) - length</span>
+    <span class="s2">#         length += 1</span>
+    <span class="s2">#         self.blocks.append(Terrain(cellX, cellY, self))</span>
+    <span class="s2">#         pygame.display.flip()</span>
+
+
+<span class="s4">''' 
+Name: Tile 
+Purpose: Stores the image of a relevant terrain. 
+'''</span>
+<span class="s0">class </span><span class="s1">Tile:</span>
+
+    <span class="s5">''' 
+    Name: __init__ 
+    Parameters: biome:string 
+    Returns: None 
+    Purpose: Constructor 
+    '''</span>
+    <span class="s0">def </span><span class="s1">__init__(self, biome):</span>
+        <span class="s1">self.biome = biome</span>
+        <span class="s1">self.img = BIOME_IMGS[biome]</span>
+
+
+<span class="s4">''' 
+Name: Obstacle 
+Purpose: This is a parent class used for obstacles which are objects the player and enemies cannot pass through. 
+'''</span>
+<span class="s0">class </span><span class="s1">Obstacle(pygame.sprite.Sprite):</span>
+
+    <span class="s5">''' 
+    Name: __init__ 
+    Parameters: x:int, y:int, width:int, height:int, image:string, name:string 
+    Returns: None 
+    Purpose: Constructor 
+    '''</span>
+    <span class="s0">def </span><span class="s1">__init__(self, x, y, width, height, image, name):</span>
+        <span class="s1">super().__init__()</span>
+        <span class="s1">self.type = name</span>
+        <span class="s1">self.mapX = x</span>
+        <span class="s1">self.mapY = y</span>
+        <span class="s1">self.width = width</span>
+        <span class="s1">self.height = height</span>
+        <span class="s1">self.image = pygame.image.load(image)</span>
+        <span class="s1">self.image = pygame.transform.scale(self.image, (self.width, self.height))</span>
+        <span class="s1">self.rect = self.image.get_rect()</span>
+        <span class="s1">self.rect.center = (x, y)</span>
+
+    <span class="s4">''' 
+    Name: __repr__ 
+    Parameters: None 
+    Returns: string 
+    Purpose: Used for debug to check obstacle positions are valid. 
+    '''</span>
+    <span class="s0">def </span><span class="s1">__repr__(self):</span>
+        <span class="s0">return </span><span class="s4">f&quot;</span><span class="s6">{</span><span class="s1">self.mapX</span><span class="s6">}</span><span class="s4">, </span><span class="s6">{</span><span class="s1">self.mapY</span><span class="s6">}</span><span class="s4">, obstacle&quot;</span>
+
+
+<span class="s4">''' 
+Name: House 
+Purpose: A large obstacle owned by an NPC 
+'''</span>
+<span class="s0">class </span><span class="s1">House(Obstacle):</span>
+
+    <span class="s5">''' 
+    Name: __init__ 
+    Parameters: x:int, y:int, owner:object 
+    Returns: None 
+    Purpose: Constructor 
+    '''</span>
+    <span class="s0">def </span><span class="s1">__init__(self, x, y, owner):</span>
+        <span class="s1">super().__init__(x + TILE_SIZE*</span><span class="s3">4</span><span class="s1">, y + TILE_SIZE*</span><span class="s3">4</span><span class="s1">, TILE_SIZE*</span><span class="s3">8</span><span class="s1">, TILE_SIZE*</span><span class="s3">8</span><span class="s1">, </span><span class="s4">&quot;Assets/house.png&quot;</span><span class="s1">, </span><span class="s4">&quot;House&quot;</span><span class="s1">)</span>
+        <span class="s1">self.owner = owner</span>
+
+
+<span class="s4">''' 
+Name: Grave 
+Purpose: Special type of obstacle which spawns enemies if a player is too close 
+'''</span>
+<span class="s0">class </span><span class="s1">Grave(Obstacle):</span>
+
+    <span class="s5">''' 
+    Name: __init__ 
+    Parameters: x:int, y:int 
+    Returns: None 
+    Purpose: Constructor 
+    '''</span>
+    <span class="s0">def </span><span class="s1">__init__(self, x, y):</span>
+        <span class="s1">super().__init__(x, y, TILE_SIZE, TILE_SIZE, </span><span class="s4">&quot;Assets/skull.png&quot;</span><span class="s1">, </span><span class="s4">&quot;Grave&quot;</span><span class="s1">)</span>
+        <span class="s1">self.lastSpawn = pygame.time.get_ticks()</span>
+
+    <span class="s0">def </span><span class="s1">checkSpawn(self, playerPos):</span>
+        <span class="s1">close = </span><span class="s0">False</span>
+        <span class="s0">for </span><span class="s1">pos </span><span class="s0">in </span><span class="s1">playerPos:</span>
+            <span class="s1">hypotenuse = math.sqrt(((pos[</span><span class="s3">0</span><span class="s1">] - self.mapX)**</span><span class="s3">2</span><span class="s1">) + ((pos[</span><span class="s3">1</span><span class="s1">] - self.mapY)**</span><span class="s3">2</span><span class="s1">))</span>
+            <span class="s0">if </span><span class="s1">hypotenuse &lt; </span><span class="s3">600</span><span class="s1">:</span>
+                <span class="s1">close = </span><span class="s0">True</span>
+        <span class="s0">if </span><span class="s1">close:</span>
+            <span class="s0">if </span><span class="s1">pygame.time.get_ticks() - self.lastSpawn &gt; </span><span class="s3">2000</span><span class="s1">:</span>
+                <span class="s1">self.lastSpawn = pygame.time.get_ticks()</span>
+                <span class="s0">return </span><span class="s1">self.mapX + TILE_SIZE + (TILE_SIZE//</span><span class="s3">2</span><span class="s1">), self.mapY +TILE_SIZE+ (TILE_SIZE//</span><span class="s3">2</span><span class="s1">)</span>
+        <span class="s0">return False</span>
+
+
+<span class="s4">''' 
+Name: Bush 
+Purpose: Generic obstacle. 
+'''</span>
+<span class="s0">class </span><span class="s1">Bush(Obstacle):</span>
+
+    <span class="s5">''' 
+    Name: __init__ 
+    Parameters: x:int, y:int 
+    Returns: None 
+    Purpose: Constructor 
+    '''</span>
+    <span class="s0">def </span><span class="s1">__init__(self, x, y):</span>
+        <span class="s1">super().__init__(x, y, TILE_SIZE, TILE_SIZE, </span><span class="s4">&quot;Assets/bush.png&quot;</span><span class="s1">, </span><span class="s4">&quot;Bush&quot;</span><span class="s1">)</span>
+
+
+</pre>
+</body>
+</html>

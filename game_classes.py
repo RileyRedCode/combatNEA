@@ -76,11 +76,11 @@ class World:
 		self.y = 0
 		mapGen = MapGen.MapGenerator(textMap, obstacles)
 		self.img, self.obstacleList = mapGen. finalise()
-		# Convert the PIL Image to a pygame Surface so that it can blit-ed without any issues
-		img_bytes = self.img.tobytes()
-		img_size = self.img.size
-		img_mode = self.img.mode
-		self.img = pygame.image.fromstring(img_bytes, img_size, img_mode)#fromstring requires the bytes for the image, the size and the mode
+		# Converts Image to a pygame Surface so that it can blit-ed without any issues
+		imgBytes = self.img.tobytes()
+		imgSize = self.img.size
+		imgMode = self.img.mode
+		self.img = pygame.image.fromstring(imgBytes, imgSize, imgMode)
 		self.tileMap = mapGen.textMap
 		self.worldSurface = pygame.Surface((MAP_RES))
 		self.worldSurface.blit(self.img, (0, 0))

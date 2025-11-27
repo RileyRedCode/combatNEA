@@ -1,0 +1,308 @@
+<html>
+<head>
+<title>Model Server.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #f97bb0; font-weight: bold;}
+.s1 { color: #dfdfe0;}
+.s2 { color: #ff806c;}
+.s3 { color: #d7c781;}
+.s4 { color: #7f8c99;}
+</style>
+</head>
+<body bgcolor="#292a30">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+Model Server.py</font>
+</center></td></tr></table>
+<pre><span class="s0">import </span><span class="s1">socket, threading, json, time, pygame</span>
+<span class="s0">from </span><span class="s1">idlelib.query </span><span class="s0">import </span><span class="s1">Query</span>
+
+<span class="s0">from </span><span class="s1">MapGen </span><span class="s0">import </span><span class="s1">MapGenerator, House, Grave, Bush</span>
+<span class="s0">from </span><span class="s1">game_classes </span><span class="s0">import </span><span class="s1">nodeSetup, ServerEnemy, Bullet, Explosion, TILE_SIZE, MAP_WIDTH, SCREEN_SIZE, Character, \</span>
+    <span class="s1">npcList, obstacleList</span>
+<span class="s0">from </span><span class="s1">npcs </span><span class="s0">import </span><span class="s1">Monarch</span>
+
+<span class="s1">HOST = </span><span class="s2">'127.0.0.1'</span>
+<span class="s1">PORT = </span><span class="s3">50000</span>
+<span class="s1">game = </span><span class="s0">False</span>
+<span class="s1">clock = pygame.time.Clock()</span>
+
+<span class="s2">''' 
+Name: recv_from_client 
+Parameters: conn:connection, client_list:list 
+Returns: None 
+Purpose: Will send messages from one client to the other while also registering any important messages to the game loop. 
+'''</span>
+<span class="s0">def </span><span class="s1">recv_from_client(conn,client_list):</span>
+    <span class="s0">while True</span><span class="s1">:</span>
+        <span class="s1">data = conn.recv(</span><span class="s3">1024</span><span class="s1">)</span>
+        <span class="s0">if </span><span class="s1">data:</span>
+            <span class="s1">instructions = data.decode().split(</span><span class="s2">&quot;#&quot;</span><span class="s1">)</span>
+            <span class="s1">packet = json.loads(instructions[</span><span class="s3">0</span><span class="s1">])</span>
+            <span class="s0">for </span><span class="s1">client </span><span class="s0">in </span><span class="s1">client_list:</span>
+                <span class="s0">if </span><span class="s1">client != conn:</span>
+                    <span class="s1">client.send((json.dumps(packet)+</span><span class="s2">&quot;#&quot;</span><span class="s1">).encode())</span>
+                <span class="s0">else</span><span class="s1">:</span>
+                    <span class="s0">if </span><span class="s1">packet[</span><span class="s2">&quot;command&quot;</span><span class="s1">] == </span><span class="s2">&quot;MOVE&quot;</span><span class="s1">:</span>
+                        <span class="s1">players[conn].mapX, players[conn].mapY = packet[</span><span class="s2">&quot;data&quot;</span><span class="s1">][</span><span class="s2">&quot;xPos&quot;</span><span class="s1">], packet[</span><span class="s2">&quot;data&quot;</span><span class="s1">][</span><span class="s2">&quot;yPos&quot;</span><span class="s1">]</span>
+
+                    <span class="s0">if </span><span class="s1">packet[</span><span class="s2">&quot;command&quot;</span><span class="s1">] == </span><span class="s2">&quot;ENEMYHIT&quot;</span><span class="s1">:</span>
+                        <span class="s0">for </span><span class="s1">enemy </span><span class="s0">in </span><span class="s1">serverEnemies:</span>
+                            <span class="s0">if </span><span class="s1">enemy.id </span><span class="s0">in </span><span class="s1">packet[</span><span class="s2">&quot;data&quot;</span><span class="s1">][</span><span class="s2">&quot;list&quot;</span><span class="s1">]:</span>
+                                <span class="s1">enemy.takeDamage(packet[</span><span class="s2">&quot;data&quot;</span><span class="s1">][</span><span class="s2">&quot;damage&quot;</span><span class="s1">])</span>
+
+                    <span class="s0">if </span><span class="s1">packet[</span><span class="s2">&quot;command&quot;</span><span class="s1">] == </span><span class="s2">&quot;STARTCONFIRMATION&quot;</span><span class="s1">:</span>
+                        <span class="s0">for </span><span class="s1">c </span><span class="s0">in </span><span class="s1">confirmationList:</span>
+                            <span class="s0">if </span><span class="s1">c[</span><span class="s3">0</span><span class="s1">] == client:</span>
+                                <span class="s1">c[</span><span class="s3">1</span><span class="s1">] = </span><span class="s0">True</span>
+
+                    <span class="s0">if </span><span class="s1">packet[</span><span class="s2">&quot;command&quot;</span><span class="s1">] == </span><span class="s2">&quot;DEATHCONFIRMATION&quot;</span><span class="s1">:</span>
+                        <span class="s1">players[client].confirm = </span><span class="s0">True</span>
+
+                    <span class="s0">if </span><span class="s1">packet[</span><span class="s2">&quot;command&quot;</span><span class="s1">] == </span><span class="s2">&quot;REVCONFIRMATION&quot;</span><span class="s1">:</span>
+                        <span class="s1">players[client].confirm = </span><span class="s0">False</span>
+
+                    <span class="s0">if </span><span class="s1">packet[</span><span class="s2">&quot;command&quot;</span><span class="s1">] == </span><span class="s2">&quot;CONFIRMATION&quot;</span><span class="s1">:</span>
+                        <span class="s0">for </span><span class="s1">enemy </span><span class="s0">in </span><span class="s1">serverEnemies:</span>
+                            <span class="s0">if </span><span class="s1">enemy.id == packet[</span><span class="s2">&quot;data&quot;</span><span class="s1">][</span><span class="s2">&quot;id&quot;</span><span class="s1">]:</span>
+                                <span class="s1">enemy.confirm = </span><span class="s0">True</span>
+
+                    <span class="s0">if </span><span class="s1">packet[</span><span class="s2">&quot;command&quot;</span><span class="s1">] == </span><span class="s2">&quot;TALKSTOP&quot;</span><span class="s1">:</span>
+                        <span class="s1">players[client].endTalk(</span><span class="s0">True</span><span class="s1">)</span>
+
+                    <span class="s0">if </span><span class="s1">packet[</span><span class="s2">&quot;command&quot;</span><span class="s1">] == </span><span class="s2">&quot;PAUSE&quot;</span><span class="s1">:</span>
+                        <span class="s1">players[client].paused = </span><span class="s0">True</span>
+
+                    <span class="s0">if </span><span class="s1">packet[</span><span class="s2">&quot;command&quot;</span><span class="s1">] == </span><span class="s2">&quot;UNPAUSE&quot;</span><span class="s1">:</span>
+                        <span class="s1">players[client].paused = </span><span class="s0">False</span>
+
+                    <span class="s0">if </span><span class="s1">packet[</span><span class="s2">&quot;command&quot;</span><span class="s1">] == </span><span class="s2">&quot;REVIVAL&quot;</span><span class="s1">:</span>
+                        <span class="s0">for </span><span class="s1">p </span><span class="s0">in </span><span class="s1">players:</span>
+                            <span class="s0">if </span><span class="s1">players[p].id </span><span class="s0">in </span><span class="s1">packet[</span><span class="s2">&quot;data&quot;</span><span class="s1">][</span><span class="s2">&quot;idList&quot;</span><span class="s1">]:</span>
+                                <span class="s1">players[p].reviveSelf()</span>
+
+<span class="s2">''' 
+Name: send_to_client 
+Parameters: client_list:list, packet:dictionary, identity:connection 
+Returns: None 
+Purpose: This sends messages to both or one client depending on if it has been specified with the identity parameter. 
+'''</span>
+<span class="s0">def </span><span class="s1">send_to_client(client_list, packet, identity=</span><span class="s0">False</span><span class="s1">):</span>
+    <span class="s0">if </span><span class="s1">identity:</span>
+        <span class="s0">for </span><span class="s1">client </span><span class="s0">in </span><span class="s1">client_list:</span>
+            <span class="s0">if </span><span class="s1">client == identity:</span>
+                <span class="s1">client.send((json.dumps(packet) + </span><span class="s2">&quot;#&quot;</span><span class="s1">).encode())</span>
+    <span class="s0">else</span><span class="s1">:</span>
+        <span class="s0">for </span><span class="s1">client </span><span class="s0">in </span><span class="s1">client_list:</span>
+            <span class="s1">client.send((json.dumps(packet) + </span><span class="s2">&quot;#&quot;</span><span class="s1">).encode())</span>
+
+<span class="s2">''' 
+Name: gameLoop 
+Parameters: players dictionary, serverEnemies:list, client_list:list, confirmationList:list 
+Returns: None 
+Purpose: Will check if all players have entered the game loop and if so begin determining activities such as damage collision checks, npc movement and enemy activities. 
+'''</span>
+<span class="s0">def </span><span class="s1">gameLoop(players, serverEnemies, client_list, confirmationList):</span>
+    <span class="s1">game = </span><span class="s0">False</span>
+    <span class="s0">while not </span><span class="s1">game:</span>
+        <span class="s1">game = </span><span class="s0">True</span>
+        <span class="s0">for </span><span class="s1">c </span><span class="s0">in </span><span class="s1">confirmationList:</span>
+            <span class="s0">if not </span><span class="s1">c[</span><span class="s3">1</span><span class="s1">]:</span>
+                <span class="s1">game = </span><span class="s0">False</span>
+    <span class="s0">while </span><span class="s1">game:</span>
+        <span class="s0">for </span><span class="s1">player </span><span class="s0">in </span><span class="s1">players:</span>
+            <span class="s0">if </span><span class="s1">players[player].dead </span><span class="s0">and not </span><span class="s1">players[player].confirm:</span><span class="s4">#This will keep sending the death message until confirmation is received</span>
+                <span class="s1">dpacket = {</span><span class="s2">&quot;command&quot;</span><span class="s1">: </span><span class="s2">&quot;DIE&quot;</span><span class="s1">, </span><span class="s2">&quot;data&quot;</span><span class="s1">:players[player].id}</span>
+                <span class="s1">send_to_client(client_list, dpacket)</span>
+            <span class="s0">elif not </span><span class="s1">players[player].dead </span><span class="s0">and </span><span class="s1">players[player].confirm:</span>
+                <span class="s1">dpacket = {</span><span class="s2">&quot;command&quot;</span><span class="s1">: </span><span class="s2">&quot;REVIVAL&quot;</span><span class="s1">, </span><span class="s2">&quot;data&quot;</span><span class="s1">: {</span><span class="s2">&quot;idList&quot;</span><span class="s1">: [players[player].id]}}</span>
+                <span class="s1">send_to_client(client_list, dpacket)</span>
+
+            <span class="s1">result = players[player].checkTalk(serverNPCs)</span>
+            <span class="s0">if </span><span class="s1">result:</span>
+                <span class="s0">for </span><span class="s1">npc </span><span class="s0">in </span><span class="s1">serverNPCs:</span>
+                    <span class="s0">if </span><span class="s1">npc == result:</span>
+                        <span class="s1">npc.addCustomer(players[player].id)</span>
+                <span class="s1">packet = {</span><span class="s2">&quot;command&quot;</span><span class="s1">: </span><span class="s2">&quot;TALK&quot;</span><span class="s1">, </span><span class="s2">&quot;data&quot;</span><span class="s1">: {</span><span class="s2">&quot;id&quot;</span><span class="s1">: result.id}}</span>
+                <span class="s1">send_to_client(client_list, packet, player)</span>
+
+        <span class="s1">packet = {</span><span class="s2">&quot;command&quot;</span><span class="s1">: </span><span class="s2">&quot;EXPLOSIONDAMAGE&quot;</span><span class="s1">, </span><span class="s2">&quot;data&quot;</span><span class="s1">: []}</span>
+        <span class="s0">for </span><span class="s1">explosion </span><span class="s0">in </span><span class="s1">serverExplosions:</span>
+            <span class="s1">data = explosion.update(players, </span><span class="s0">True</span><span class="s1">)</span>
+            <span class="s0">if </span><span class="s1">data[</span><span class="s3">1</span><span class="s1">]:</span>
+                <span class="s0">for </span><span class="s1">i </span><span class="s0">in </span><span class="s1">data[</span><span class="s3">1</span><span class="s1">]:</span>
+                    <span class="s1">players[i[</span><span class="s2">&quot;id&quot;</span><span class="s1">]].takeDamage(i[</span><span class="s2">&quot;damage&quot;</span><span class="s1">], </span><span class="s0">True</span><span class="s1">)</span>
+                    <span class="s0">if </span><span class="s1">players[i[</span><span class="s2">&quot;id&quot;</span><span class="s1">]].health == </span><span class="s3">0 </span><span class="s0">and not  </span><span class="s1">players[i[</span><span class="s2">&quot;id&quot;</span><span class="s1">]].dead:</span>
+                        <span class="s1">players[i[</span><span class="s2">&quot;id&quot;</span><span class="s1">]].die(</span><span class="s0">True</span><span class="s1">)</span>
+                        <span class="s1">dpacket = {</span><span class="s2">&quot;command&quot;</span><span class="s1">: </span><span class="s2">&quot;DIE&quot;</span><span class="s1">, </span><span class="s2">&quot;data&quot;</span><span class="s1">:players[i[</span><span class="s2">&quot;id&quot;</span><span class="s1">]].id}</span>
+                        <span class="s1">send_to_client(client_list, dpacket)</span>
+                    <span class="s1">packet[</span><span class="s2">&quot;data&quot;</span><span class="s1">] = i[</span><span class="s2">&quot;damage&quot;</span><span class="s1">]</span>
+                    <span class="s1">send_to_client(client_list, packet, i[</span><span class="s2">&quot;id&quot;</span><span class="s1">])</span>
+
+            <span class="s0">if </span><span class="s1">data[</span><span class="s3">0</span><span class="s1">] == </span><span class="s2">&quot;kill&quot;</span><span class="s1">:</span>
+                <span class="s1">serverExplosions.remove(explosion)</span>
+                <span class="s1">explosion.kill()</span>
+
+
+        <span class="s4"># Determining the action for each NPC</span>
+        <span class="s1">npcActions = []</span>
+        <span class="s0">for </span><span class="s1">npc </span><span class="s0">in </span><span class="s1">serverNPCs:</span>
+            <span class="s1">action = npc.determineState()</span>
+            <span class="s0">if </span><span class="s1">action:</span>
+                <span class="s1">npcActions.append(action)</span>
+        <span class="s1">packet = {</span><span class="s2">&quot;command&quot;</span><span class="s1">: </span><span class="s2">&quot;NPCACTIONS&quot;</span><span class="s1">, </span><span class="s2">&quot;data&quot;</span><span class="s1">: []}</span>
+        <span class="s0">for </span><span class="s1">action </span><span class="s0">in </span><span class="s1">npcActions:</span>
+            <span class="s1">packet[</span><span class="s2">&quot;data&quot;</span><span class="s1">].append({</span><span class="s2">&quot;id&quot;</span><span class="s1">:action[</span><span class="s3">0</span><span class="s1">], </span><span class="s2">&quot;x&quot;</span><span class="s1">:action[</span><span class="s3">1</span><span class="s1">], </span><span class="s2">&quot;y&quot;</span><span class="s1">:action[</span><span class="s3">2</span><span class="s1">]})</span>
+        <span class="s1">send_to_client(client_list, packet)</span>
+
+        <span class="s4">#Determining obstacle actions</span>
+        <span class="s1">packet = {</span><span class="s2">&quot;command&quot;</span><span class="s1">: </span><span class="s2">&quot;ENEMIES&quot;</span><span class="s1">, </span><span class="s2">&quot;data&quot;</span><span class="s1">: []}</span>
+        <span class="s1">playerPos = []</span>
+        <span class="s0">for </span><span class="s1">player </span><span class="s0">in </span><span class="s1">players:</span>
+            <span class="s0">if not </span><span class="s1">players[player].dead:</span>
+                <span class="s1">playerPos.append([players[player].mapX, players[player].mapY])</span>
+        <span class="s0">for </span><span class="s1">ob </span><span class="s0">in </span><span class="s1">serverObstacles:</span>
+            <span class="s0">if </span><span class="s1">ob.type == </span><span class="s2">&quot;Grave&quot;</span><span class="s1">:</span>
+                <span class="s1">data = ob.checkSpawn(playerPos)</span>
+                <span class="s0">if </span><span class="s1">data:</span>
+                    <span class="s1">serverEnemies.append(ServerEnemy(*data))</span>
+                    <span class="s1">en = serverEnemies[-</span><span class="s3">1</span><span class="s1">]</span>
+                    <span class="s1">packet[</span><span class="s2">&quot;data&quot;</span><span class="s1">].append([en.mapX, en.mapY, en.id])</span>
+        <span class="s0">if </span><span class="s1">len(packet[</span><span class="s2">&quot;data&quot;</span><span class="s1">]) &gt; </span><span class="s3">0</span><span class="s1">:</span>
+            <span class="s1">send_to_client(client_list, packet)</span>
+
+        <span class="s4"># Determining the action for each enemy</span>
+        <span class="s1">enemyActions = []</span>
+        <span class="s0">for </span><span class="s1">enemy </span><span class="s0">in </span><span class="s1">serverEnemies:</span>
+            <span class="s1">path = enemy.locate(players, serverNodes)</span>
+            <span class="s1">enemyActions.append(enemy.travel(path))</span>
+            <span class="s0">if </span><span class="s1">((pygame.time.get_ticks() - enemy.startTime &gt;= </span><span class="s3">200 </span><span class="s0">and </span><span class="s1">enemy.startTime) </span><span class="s0">or </span><span class="s1">(enemy.health &lt;= </span><span class="s3">0 </span><span class="s0">and </span><span class="s1">enemy.confirm)):</span>
+                <span class="s1">serverExplosions.add(Explosion(enemy.mapX, enemy.mapY, enemy.mapX, enemy.mapY))</span>
+                <span class="s1">serverEnemies.remove(enemy)</span>
+
+        <span class="s1">packet = {</span><span class="s2">&quot;command&quot;</span><span class="s1">:</span><span class="s2">&quot;ENEMYACTIONS&quot;</span><span class="s1">, </span><span class="s2">&quot;data&quot;</span><span class="s1">:[]}</span>
+        <span class="s0">for </span><span class="s1">action </span><span class="s0">in </span><span class="s1">enemyActions:</span>
+            <span class="s0">if </span><span class="s1">action != </span><span class="s0">None</span><span class="s1">:</span>
+                <span class="s0">if </span><span class="s1">action[</span><span class="s3">1</span><span class="s1">] == </span><span class="s2">&quot;ENEMYMOVE&quot;</span><span class="s1">:</span>
+                    <span class="s1">packet[</span><span class="s2">&quot;data&quot;</span><span class="s1">].append({</span><span class="s2">&quot;id&quot;</span><span class="s1">:action[</span><span class="s3">0</span><span class="s1">],</span><span class="s2">&quot;action&quot;</span><span class="s1">:</span><span class="s2">&quot;MOVE&quot;</span><span class="s1">, </span><span class="s2">&quot;x&quot;</span><span class="s1">:action[</span><span class="s3">2</span><span class="s1">], </span><span class="s2">&quot;y&quot;</span><span class="s1">:action[</span><span class="s3">3</span><span class="s1">]})</span>
+
+                <span class="s0">elif </span><span class="s1">action[</span><span class="s3">1</span><span class="s1">] == </span><span class="s2">&quot;ENEMYATTACK&quot;</span><span class="s1">:</span>
+                    <span class="s1">packet[</span><span class="s2">&quot;data&quot;</span><span class="s1">].append({</span><span class="s2">&quot;id&quot;</span><span class="s1">:action[</span><span class="s3">0</span><span class="s1">], </span><span class="s2">&quot;action&quot;</span><span class="s1">: </span><span class="s2">&quot;ATTACK&quot;</span><span class="s1">})</span>
+
+                <span class="s0">elif </span><span class="s1">action[</span><span class="s3">1</span><span class="s1">] == </span><span class="s2">&quot;ENEMYDIE&quot;</span><span class="s1">:</span>
+                    <span class="s1">packet[</span><span class="s2">&quot;data&quot;</span><span class="s1">].append({</span><span class="s2">&quot;id&quot;</span><span class="s1">:action[</span><span class="s3">0</span><span class="s1">], </span><span class="s2">&quot;action&quot;</span><span class="s1">: </span><span class="s2">&quot;DIE&quot;</span><span class="s1">})</span>
+        <span class="s1">send_to_client(client_list, packet)</span>
+        <span class="s1">clock.tick(</span><span class="s3">60</span><span class="s1">)</span>
+
+<span class="s4">#Player and connections</span>
+<span class="s1">s = socket.socket(socket.AF_INET,socket.SOCK_STREAM)</span>
+<span class="s1">s.bind( (HOST,PORT) )</span>
+<span class="s1">client_list = []</span>
+<span class="s1">confirmationList = []</span>
+<span class="s1">players = {}</span>
+<span class="s1">player_positions = [(</span><span class="s3">1000</span><span class="s1">,</span><span class="s3">1000</span><span class="s1">),(</span><span class="s3">1000</span><span class="s1">,</span><span class="s3">1000</span><span class="s1">)]</span>
+
+<span class="s4">#Map</span>
+<span class="s4"># textMap = [['DWater', 'Plains', 'Plains', 'Plains', 'Water', 'DWater', 'Plains', 'Plains', 'Forest', 'Forest', 'Forest', 'Plains', 'Forest', 'Forest', 'Plains', 'Forest', 'Forest', 'Plains', 'Forest', 'Mountain'], ['Forest', 'Water', 'Forest', 'Plains', 'Plains', 'Plains', 'Water', 'Water', 'Water', 'Forest', 'Water', 'Plains', 'Plains', 'Forest', 'Plains', 'Forest', 'Plains', 'Plains', 'Forest', 'Forest'], ['Forest', 'Plains', 'Forest', 'Water', 'Plains', 'Forest', 'Plains', 'Forest', 'Forest', 'Plains', 'Plains', 'Mountain', 'Plains', 'Plains', 'Plains', 'Forest', 'Plains', 'Forest', 'Plains', 'Forest'], ['Forest', 'Plains', 'Water', 'Forest', 'Plains', 'Plains', 'Plains', 'Forest', 'Forest', 'Forest', 'Forest', 'Plains', 'Plains', 'Plains', 'Plains', 'Forest', 'Forest', 'Plains', 'Forest', 'Mountain'], ['Forest', 'Plains', 'Plains', 'Plains', 'Forest', 'Forest', 'Forest', 'Plains', 'Forest', 'Mountain', 'Plains', 'Plains', 'Plains', 'Plains', 'Water', 'Plains', 'Forest', 'HMountain', 'Plains', 'Forest'], ['Forest', 'Plains', 'Forest', 'Forest', 'Water', 'Forest', 'Plains', 'Plains', 'Plains', 'Plains', 'Plains', 'Plains', 'Plains', 'Water', 'Forest', 'Forest', 'HMountain', 'Forest', 'Mountain', 'HMountain'], ['Forest', 'Mountain', 'Forest', 'Plains', 'Plains', 'Plains', 'Forest', 'Mountain', 'Water', 'Plains', 'Forest', 'Forest', 'Plains', 'Mountain', 'Forest', 'Forest', 'Forest', 'Mountain', 'Forest', 'Forest'], ['Plains', 'Plains', 'Water', 'Forest', 'Mountain', 'Plains', 'Plains', 'Plains', 'Water', 'Forest', 'DWater', 'Forest', 'DWater', 'Mountain', 'Plains', 'Mountain', 'Mountain', 'Forest', 'Forest', 'Forest'], ['Mountain', 'Forest', 'Forest', 'Plains', 'Plains', 'Plains', 'Forest', 'Mountain', 'Forest', 'Water', 'Water', 'Mountain', 'Mountain', 'Forest', 'HMountain', 'Mountain', 'Mountain', 'Plains', 'Plains', 'Forest'], ['Water', 'Forest', 'Forest', 'Plains', 'Plains', 'Forest', 'Mountain', 'Water', 'Plains', 'DWater', 'DWater', 'Mountain', 'Water', 'Mountain', 'Forest', 'Forest', 'Forest', 'Plains', 'Forest', 'Mountain'], ['Plains', 'Plains', 'Plains', 'Plains', 'Plains', 'Plains', 'Forest', 'Water', 'Mountain', 'HMountain', 'HMountain', 'Mountain', 'Water', 'Forest', 'Plains', 'Plains', 'Forest', 'Mountain', 'Forest', 'Forest'], ['Forest', 'Forest', 'Mountain', 'Forest', 'Plains', 'Water', 'Forest', 'Water', 'Mountain', 'Forest', 'Water', 'DWater', 'Water', 'Mountain', 'HMountain', 'HMountain', 'Mountain', 'Mountain', 'Mountain', 'Forest'], ['Plains', 'Plains', 'Plains', 'Water', 'Forest', 'Forest', 'Forest', 'Forest', 'HMountain', 'HMountain', 'Mountain', 'Mountain', 'Water', 'Forest', 'Mountain', 'Plains', 'Mountain', 'Mountain', 'Mountain', 'Mountain'], ['Plains', 'Plains', 'Plains', 'Forest', 'Plains', 'Plains', 'Water', 'Plains', 'Forest', 'Mountain', 'DWater', 'DWater', 'HMountain', 'Mountain', 'Forest', 'Forest', 'Forest', 'Forest', 'Plains', 'Plains'], ['Plains', 'Plains', 'Plains', 'Water', 'Plains', 'Plains', 'Mountain', 'Forest', 'Plains', 'Plains', 'Water', 'Forest', 'Mountain', 'Mountain', 'DWater', 'Plains', 'Forest', 'Forest', 'Forest', 'Forest'], ['Plains', 'Forest', 'Forest', 'Plains', 'Plains', 'Plains', 'Forest', 'Forest', 'Water', 'Mountain', 'Plains', 'Forest', 'Plains', 'Mountain', 'Plains', 'Plains', 'Mountain', 'Forest', 'Forest', 'Plains'], ['Forest', 'Forest', 'Plains', 'Forest', 'Plains', 'Forest', 'Forest', 'Forest', 'Forest', 'Forest', 'Plains', 'Mountain', 'Plains', 'Plains', 'Forest', 'Forest', 'Forest', 'Plains', 'Forest', 'Plains'], ['Plains', 'Mountain', 'Forest', 'Plains', 'Plains', 'Plains', 'Mountain', 'Plains', 'Mountain', 'Forest', 'Forest', 'Forest', 'Mountain', 'Forest', 'Plains', 'Water', 'Forest', 'Mountain', 'Forest', 'Plains'], ['Plains', 'Plains', 'Plains', 'Forest', 'Mountain', 'Mountain', 'Forest', 'Forest', 'Forest', 'Forest', 'Forest', 'Plains', 'Plains', 'Forest', 'Forest', 'Water', 'Plains', 'Plains', 'Forest', 'Plains'], ['Plains', 'Forest', 'Forest', 'Forest', 'Forest', 'Plains', 'Plains', 'Forest', 'Plains', 'Plains', 'Forest', 'Forest', 'Mountain', 'Forest', 'Plains', 'Forest', 'Plains', 'Water', 'Forest', 'Mountain']]</span>
+<span class="s1">mapGen = MapGenerator()</span>
+<span class="s1">textMap, obstacles, serverNPCs = mapGen.generate()</span>
+<span class="s1">print(obstacles)</span>
+
+<span class="s4"># obstacles = [((2000, 1000, False), &quot;house&quot;)]#mapGen.obstacleGen()</span>
+<span class="s1">serverObstacles = []</span>
+<span class="s0">for </span><span class="s1">obstacle </span><span class="s0">in </span><span class="s1">obstacles:</span>
+    <span class="s0">if </span><span class="s1">obstacle[</span><span class="s3">1</span><span class="s1">] == </span><span class="s2">&quot;House&quot;</span><span class="s1">:</span>
+        <span class="s1">serverObstacles.append(House(obstacle[</span><span class="s3">0</span><span class="s1">][</span><span class="s3">0</span><span class="s1">], obstacle[</span><span class="s3">0</span><span class="s1">][</span><span class="s3">1</span><span class="s1">], serverNPCs.sprites()[obstacle[</span><span class="s3">0</span><span class="s1">][</span><span class="s3">2</span><span class="s1">]]))</span>
+    <span class="s0">elif </span><span class="s1">obstacle[</span><span class="s3">1</span><span class="s1">] == </span><span class="s2">&quot;Grave&quot;</span><span class="s1">:</span>
+        <span class="s1">serverObstacles.append(Grave(*obstacle[</span><span class="s3">0</span><span class="s1">]))</span>
+    <span class="s0">elif </span><span class="s1">obstacle[</span><span class="s3">1</span><span class="s1">] == </span><span class="s2">&quot;Bush&quot;</span><span class="s1">:</span>
+        <span class="s1">serverObstacles.append(Bush(*obstacle[</span><span class="s3">0</span><span class="s1">]))</span>
+<span class="s1">serverNodes = [[</span><span class="s0">False for </span><span class="s1">count </span><span class="s0">in </span><span class="s1">range(MAP_WIDTH*(SCREEN_SIZE[</span><span class="s3">1</span><span class="s1">]//TILE_SIZE))] </span><span class="s0">for </span><span class="s1">i </span><span class="s0">in </span><span class="s1">range(MAP_WIDTH*(SCREEN_SIZE[</span><span class="s3">0</span><span class="s1">]//TILE_SIZE))]</span>
+<span class="s4">#this * unpacks the elements</span>
+<span class="s1">serverNodes = nodeSetup(serverObstacles, serverNodes)</span>
+<span class="s4"># for y in serverNodes:</span>
+<span class="s4">#     string = &quot;&quot;</span>
+<span class="s4">#     for x in y:</span>
+<span class="s4">#         if x:</span>
+<span class="s4">#             string += &quot;0&quot;</span>
+<span class="s4">#         else:</span>
+<span class="s4">#             string += &quot;1&quot;</span>
+<span class="s4">#     print(string)</span>
+
+<span class="s4">#NPCs</span>
+<span class="s1">npclist = []</span>
+<span class="s4"># serverNPCs.add(Monarch(1600, 1400))</span>
+<span class="s0">for </span><span class="s1">npc </span><span class="s0">in </span><span class="s1">serverNPCs:</span>
+    <span class="s1">npclist.append([npc.mapX, npc.mapY, npc.id])</span>
+
+<span class="s4">#Enemies</span>
+<span class="s4">#Server enemies is a list of the actual objects whereas enemies just contains the data required to send to clients</span>
+<span class="s1">serverEnemies = []</span>
+<span class="s1">enemies = []</span>
+<span class="s1">serverEnemies.append(ServerEnemy(</span><span class="s3">2000</span><span class="s1">, </span><span class="s3">2000</span><span class="s1">))</span>
+<span class="s4"># serverEnemies.append(ServerEnemy(2100, 2100))</span>
+<span class="s4"># serverEnemies.append(ServerEnemy(2000, 2100))</span>
+<span class="s4"># serverEnemies.append(ServerEnemy(2100, 2000))</span>
+<span class="s4"># serverEnemies.append(ServerEnemy(3000, 4000))</span>
+<span class="s4"># serverEnemies.append(ServerEnemy(4000, 4000))</span>
+<span class="s4"># serverEnemies.append(ServerEnemy(6000, 4000))</span>
+<span class="s4"># serverEnemies.append(ServerEnemy(5000, 4000))</span>
+<span class="s4"># serverEnemies.append(ServerEnemy(3000, 5000))</span>
+<span class="s0">for </span><span class="s1">enemy </span><span class="s0">in </span><span class="s1">serverEnemies:</span>
+    <span class="s1">enemies.append([enemy.mapX, enemy.mapY, enemy.id])</span>
+
+<span class="s1">serverExplosions = pygame.sprite.Group()</span>
+<span class="s1">serverBullets = pygame.sprite.Group()</span>
+
+
+
+
+<span class="s1">print(</span><span class="s2">&quot;Server is listening on port&quot;</span><span class="s1">,PORT)</span>
+<span class="s1">s.listen(</span><span class="s3">1</span><span class="s1">)</span>
+<span class="s0">while True</span><span class="s1">:</span>
+    <span class="s1">conn, addr = s.accept()</span>
+    <span class="s1">client_list.append(conn)</span>
+    <span class="s1">confirmationList.append([conn, </span><span class="s0">False</span><span class="s1">])</span>
+    <span class="s1">print(</span><span class="s2">&quot;New Connection from &quot;</span><span class="s1">,addr)</span>
+    <span class="s1">threading.Thread(target=recv_from_client, args=(conn,client_list)).start()</span>
+    <span class="s0">if </span><span class="s1">len(client_list) % </span><span class="s3">2 </span><span class="s1">== </span><span class="s3">1</span><span class="s1">:</span>
+        <span class="s1">player_pos = player_positions[</span><span class="s3">0</span><span class="s1">]</span>
+        <span class="s1">player2_pos = player_positions[</span><span class="s3">1</span><span class="s1">]</span>
+        <span class="s1">players[conn] = Character(player_positions[</span><span class="s3">0</span><span class="s1">][</span><span class="s3">0</span><span class="s1">], player_positions[</span><span class="s3">0</span><span class="s1">][</span><span class="s3">1</span><span class="s1">], conn, </span><span class="s0">True</span><span class="s1">)</span>
+
+    <span class="s0">else</span><span class="s1">:</span>
+        <span class="s1">player_pos = player_positions[</span><span class="s3">1</span><span class="s1">]</span>
+        <span class="s1">player2_pos = player_positions[</span><span class="s3">0</span><span class="s1">]</span>
+        <span class="s1">players[conn] = Character(player_positions[</span><span class="s3">1</span><span class="s1">][</span><span class="s3">0</span><span class="s1">], player_positions[</span><span class="s3">1</span><span class="s1">][</span><span class="s3">1</span><span class="s1">], conn, </span><span class="s0">True</span><span class="s1">)</span><span class="s4">#&quot;identity&quot;: conn, &quot;location&quot;: player_positions[1], &quot;health&quot;: 100</span>
+
+    <span class="s1">message = {</span><span class="s2">&quot;command&quot;</span><span class="s1">:</span><span class="s2">&quot;SETUP&quot;</span><span class="s1">, </span><span class="s2">&quot;data&quot;</span><span class="s1">:{</span><span class="s2">&quot;PlayerX&quot;</span><span class="s1">:player_pos[</span><span class="s3">0</span><span class="s1">], </span><span class="s2">&quot;PlayerY&quot;</span><span class="s1">:player_pos[</span><span class="s3">1</span><span class="s1">], </span><span class="s2">&quot;EnemyX&quot;</span><span class="s1">:player2_pos[</span><span class="s3">0</span><span class="s1">], </span><span class="s2">&quot;EnemyY&quot;</span><span class="s1">:player2_pos[</span><span class="s3">1</span><span class="s1">], </span><span class="s2">&quot;id&quot;</span><span class="s1">:players[conn].id}}</span>
+    <span class="s1">conn.send((json.dumps(message)+</span><span class="s2">&quot;#&quot;</span><span class="s1">).encode())</span>
+    <span class="s1">time.sleep(</span><span class="s3">1</span><span class="s1">)</span>
+    <span class="s1">message = {</span><span class="s2">&quot;command&quot;</span><span class="s1">:</span><span class="s2">&quot;OBSTACLES&quot;</span><span class="s1">, </span><span class="s2">&quot;data&quot;</span><span class="s1">:obstacles}</span>
+    <span class="s1">conn.send((json.dumps(message)+</span><span class="s2">&quot;#&quot;</span><span class="s1">).encode())</span>
+    <span class="s1">time.sleep(</span><span class="s3">1</span><span class="s1">)</span>
+    <span class="s1">message = {</span><span class="s2">&quot;command&quot;</span><span class="s1">:</span><span class="s2">&quot;ENEMIES&quot;</span><span class="s1">, </span><span class="s2">&quot;data&quot;</span><span class="s1">:enemies}</span>
+    <span class="s1">conn.send((json.dumps(message)+</span><span class="s2">&quot;#&quot;</span><span class="s1">).encode())</span>
+    <span class="s1">time.sleep(</span><span class="s3">1</span><span class="s1">)</span>
+    <span class="s1">message = {</span><span class="s2">&quot;command&quot;</span><span class="s1">: </span><span class="s2">&quot;NPCS&quot;</span><span class="s1">, </span><span class="s2">&quot;data&quot;</span><span class="s1">: npclist}</span>
+    <span class="s1">conn.send((json.dumps(message) + </span><span class="s2">&quot;#&quot;</span><span class="s1">).encode())</span>
+    <span class="s1">time.sleep(</span><span class="s3">1</span><span class="s1">)</span>
+
+
+    <span class="s0">for </span><span class="s1">count </span><span class="s0">in </span><span class="s1">range(len(textMap)):</span>
+        <span class="s0">if </span><span class="s1">count == len(textMap)-</span><span class="s3">1</span><span class="s1">:</span>
+            <span class="s1">message = {</span><span class="s2">&quot;command&quot;</span><span class="s1">:</span><span class="s2">&quot;MAP&quot;</span><span class="s1">, </span><span class="s2">&quot;data&quot;</span><span class="s1">:{</span><span class="s2">&quot;Count&quot;</span><span class="s1">:</span><span class="s2">&quot;FINAL&quot;</span><span class="s1">, </span><span class="s2">&quot;List&quot;</span><span class="s1">:textMap[count]}}</span>
+        <span class="s0">else</span><span class="s1">:</span>
+            <span class="s1">message = {</span><span class="s2">&quot;command&quot;</span><span class="s1">: </span><span class="s2">&quot;MAP&quot;</span><span class="s1">, </span><span class="s2">&quot;data&quot;</span><span class="s1">: {</span><span class="s2">&quot;Count&quot;</span><span class="s1">: count, </span><span class="s2">&quot;List&quot;</span><span class="s1">: textMap[count]}}</span>
+        <span class="s1">conn.send(json.dumps(message).encode())</span>
+        <span class="s1">time.sleep(</span><span class="s3">1</span><span class="s1">)</span>
+    <span class="s0">if </span><span class="s1">len(client_list) == </span><span class="s3">2</span><span class="s1">:</span>
+        <span class="s1">threading.Thread(target=gameLoop, args=(players, serverEnemies, client_list, confirmationList)).start()</span>
+        <span class="s1">message = {</span><span class="s2">&quot;command&quot;</span><span class="s1">: </span><span class="s2">&quot;START&quot;</span><span class="s1">}</span>
+
+        <span class="s0">for </span><span class="s1">c </span><span class="s0">in </span><span class="s1">client_list:</span>
+            <span class="s1">c.send(json.dumps(message).encode())</span></pre>
+</body>
+</html>

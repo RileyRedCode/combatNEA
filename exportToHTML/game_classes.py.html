@@ -1,0 +1,1968 @@
+<html>
+<head>
+<title>game_classes.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #f97bb0; font-weight: bold;}
+.s1 { color: #dfdfe0;}
+.s2 { color: #d7c781;}
+.s3 { color: #ff806c;}
+.s4 { color: #7f8c99;}
+.s5 { color: #629755; font-style: italic;}
+.s6 { color: #fcfcfc;}
+</style>
+</head>
+<body bgcolor="#292a30">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+game_classes.py</font>
+</center></td></tr></table>
+<pre><span class="s0">import </span><span class="s1">pygame, json, math, MapGen, random</span>
+
+<span class="s1">WHITE = (</span><span class="s2">255</span><span class="s1">,</span><span class="s2">255</span><span class="s1">,</span><span class="s2">255</span><span class="s1">)</span>
+<span class="s1">RED = (</span><span class="s2">255</span><span class="s1">,</span><span class="s2">0</span><span class="s1">,</span><span class="s2">0</span><span class="s1">)</span>
+<span class="s1">GREEN = (</span><span class="s2">0</span><span class="s1">,</span><span class="s2">255</span><span class="s1">,</span><span class="s2">0</span><span class="s1">)</span>
+<span class="s1">BLUE = (</span><span class="s2">0</span><span class="s1">,</span><span class="s2">0</span><span class="s1">,</span><span class="s2">255</span><span class="s1">)</span>
+<span class="s1">BLACK = (</span><span class="s2">0</span><span class="s1">,</span><span class="s2">0</span><span class="s1">,</span><span class="s2">0</span><span class="s1">)</span>
+<span class="s1">TILE_SIZE = </span><span class="s2">40</span>
+<span class="s1">SCREEN_SIZE = (</span><span class="s2">800</span><span class="s1">,</span><span class="s2">800</span><span class="s1">)</span>
+<span class="s1">TERRAIN_SIZE = (</span><span class="s2">800</span><span class="s1">, </span><span class="s2">800</span><span class="s1">)</span>
+<span class="s1">MAP_WIDTH = </span><span class="s2">20</span>
+<span class="s1">MAP_RES = (TERRAIN_SIZE[</span><span class="s2">0</span><span class="s1">]*MAP_WIDTH, TERRAIN_SIZE[</span><span class="s2">1</span><span class="s1">]*MAP_WIDTH)</span>
+
+<span class="s3">''' 
+Name: checkCollision 
+Parameters: x1:int, x2:int, y1:int, y2:int, ox1:int, ox2:int, oy1:int, oy2:int 
+Returns: boolean 
+Purpose: Returns True or false depending on if the two rectangles given overlap. 
+'''</span>
+<span class="s0">def </span><span class="s1">checkCollision(x1, x2, y1, y2, ox1, ox2, oy1, oy2):</span><span class="s4">#Give the start and end points of each objects x and y axis</span>
+	<span class="s0">if </span><span class="s1">((x1 &lt;= ox1 &lt; x2) </span><span class="s0">or </span><span class="s1">(x1 &lt; ox2 &lt;= x2) </span><span class="s0">or </span><span class="s1">(ox1 &lt; x1 &lt; ox2)) </span><span class="s0">and </span><span class="s1">((y1 &lt;= oy1 &lt; y2) </span><span class="s0">or </span><span class="s1">(y1 &lt; oy2 &lt;= y2) </span><span class="s0">or </span><span class="s1">(oy1 &lt; y1 &lt; oy2)):</span>
+		<span class="s0">return True</span>
+	<span class="s0">else</span><span class="s1">:</span>
+		<span class="s0">return False</span>
+
+<span class="s3">''' 
+Name: Node 
+Purpose: These are invisible points which are scattered around the map in a grid  
+format. They are used for pathfinding and lay out where an enemy can and can't travel to. 
+'''</span>
+<span class="s0">class </span><span class="s1">Node:</span>
+
+	<span class="s5">''' 
+    Name: __init__ 
+    Parameters: x:integer, y:integer 
+    Returns: None 
+    Purpose: Constructor for Nodes. 
+    '''</span>
+	<span class="s0">def </span><span class="s1">__init__(self, x, y):</span>
+		<span class="s1">self.mapX, self.mapY = x, y</span>
+		<span class="s1">self.up = </span><span class="s0">False</span>
+		<span class="s1">self.down = </span><span class="s0">False</span>
+		<span class="s1">self.left = </span><span class="s0">False</span>
+		<span class="s1">self.right = </span><span class="s0">False</span>
+		<span class="s1">self.topLeft = </span><span class="s0">False</span>
+		<span class="s1">self.topRight = </span><span class="s0">False</span>
+		<span class="s1">self.bottomRight = </span><span class="s0">False</span>
+		<span class="s1">self.bottomLeft = </span><span class="s0">False</span>
+		<span class="s1">self.neighbours = []</span>
+
+	<span class="s3">''' 
+    Name: __repr__ 
+    Parameters: None 
+    Returns: f&quot;{self.mapX},{self.mapY}&quot;:string 
+    Purpose: This returns a string containing the position the node is located at. 
+    It is used for debugging purposes. 
+    '''</span>
+	<span class="s0">def </span><span class="s1">__repr__(self):</span>
+		<span class="s0">return </span><span class="s3">f&quot;[</span><span class="s6">{</span><span class="s1">self.mapX</span><span class="s6">}</span><span class="s3">,</span><span class="s6">{</span><span class="s1">self.mapY</span><span class="s6">}</span><span class="s3">]&quot;</span>
+
+<span class="s3">''' 
+Name: World 
+Purpose: Used to store all world related variables such as nodes, obstacles, and structures.  
+It is also used for establishing Nodes. 
+'''</span>
+<span class="s0">class </span><span class="s1">World:</span>
+
+	<span class="s5">''' 
+    Name: __init__ 
+    Parameters: textMap:list, obstacles:spriteGroup 
+    Returns: None 
+    Purpose: Constructor 
+    '''</span>
+	<span class="s0">def </span><span class="s1">__init__(self, textMap, obstacles):</span>
+		<span class="s1">self.x = </span><span class="s2">0</span>
+		<span class="s1">self.y = </span><span class="s2">0</span>
+		<span class="s1">mapGen = MapGen.MapGenerator(textMap, obstacles)</span>
+		<span class="s1">self.img, self.obstacleList = mapGen. finalise()</span>
+		<span class="s4"># Convert the PIL Image to a pygame Surface so that it can blit-ed without any issues</span>
+		<span class="s1">img_bytes = self.img.tobytes()</span>
+		<span class="s1">img_size = self.img.size</span>
+		<span class="s1">img_mode = self.img.mode</span>
+		<span class="s1">self.img = pygame.image.fromstring(img_bytes, img_size, img_mode)</span><span class="s4">#fromstring requires the bytes for the image, the size and the mode</span>
+		<span class="s1">self.tileMap = mapGen.textMap</span>
+		<span class="s1">self.worldSurface = pygame.Surface((MAP_RES))</span>
+		<span class="s1">self.worldSurface.blit(self.img, (</span><span class="s2">0</span><span class="s1">, </span><span class="s2">0</span><span class="s1">))</span>
+		<span class="s1">self.nodes = [[</span><span class="s0">False for </span><span class="s1">count </span><span class="s0">in </span><span class="s1">range(MAP_WIDTH*(SCREEN_SIZE[</span><span class="s2">1</span><span class="s1">]//TILE_SIZE))] </span><span class="s0">for </span><span class="s1">i </span><span class="s0">in </span><span class="s1">range(MAP_WIDTH*(SCREEN_SIZE[</span><span class="s2">0</span><span class="s1">]//TILE_SIZE))]</span><span class="s4">#Establishes a plain grid</span>
+
+	<span class="s3">''' 
+    Name: draw 
+    Parameters: screen:rect 
+    Returns: None 
+    Purpose: draws the map onto the screen 
+    '''</span>
+	<span class="s0">def </span><span class="s1">draw(self, screen):</span>
+		<span class="s1">screen.blit(self.worldSurface, (self.x, self.y))</span>
+
+<span class="s3">''' 
+Name: Hud 
+Purpose: This is a heads up display which displays information like Health to the player. 
+'''</span>
+<span class="s0">class </span><span class="s1">Hud:</span>
+
+	<span class="s5">''' 
+    Name: __init__ 
+    Parameters: owner:object 
+    Returns: None 
+    Purpose: Initializes the hud. 
+    '''</span>
+	<span class="s0">def </span><span class="s1">__init__(self, owner):</span>
+		<span class="s1">self.owner = owner</span>
+		<span class="s1">self.animation = </span><span class="s0">False</span><span class="s4">#This indicates when an animation is playing</span>
+		<span class="s4">#Health bar section</span>
+		<span class="s1">self.displayHealth = </span><span class="s2">100</span>
+		<span class="s1">self.displayDamage = </span><span class="s2">0</span>
+		<span class="s1">self.displayHeal = </span><span class="s2">0</span>
+		<span class="s4"># dimensions are 110 by 30</span>
+		<span class="s1">self.healthbar = pygame.image.load(</span><span class="s3">&quot;Assets/healthbar.png&quot;</span><span class="s1">)</span>
+		<span class="s1">self.healthbar = pygame.transform.scale(self.healthbar,(</span><span class="s2">220</span><span class="s1">, </span><span class="s2">60</span><span class="s1">))</span>
+
+		<span class="s4">#colours</span>
+		<span class="s1">self.healthBgColour = (</span><span class="s2">25</span><span class="s1">, </span><span class="s2">25</span><span class="s1">, </span><span class="s2">25</span><span class="s1">)</span>
+		<span class="s1">self.white = (</span><span class="s2">255</span><span class="s1">, </span><span class="s2">255</span><span class="s1">, </span><span class="s2">255</span><span class="s1">)</span>
+		<span class="s1">self.healthColour = (</span><span class="s2">255</span><span class="s1">, </span><span class="s2">120</span><span class="s1">, </span><span class="s2">90</span><span class="s1">)</span>
+		<span class="s1">self.green = (</span><span class="s2">0</span><span class="s1">, </span><span class="s2">200</span><span class="s1">, </span><span class="s2">30</span><span class="s1">)</span>
+
+		<span class="s1">self.health = pygame.surface.Surface((self.displayHealth, </span><span class="s2">40</span><span class="s1">))</span>
+		<span class="s1">self.health.fill(self.healthColour)</span>
+		<span class="s1">self.damage = pygame.surface.Surface((self.displayHealth, </span><span class="s2">40</span><span class="s1">))</span>
+		<span class="s1">self.damage.fill(self.white)</span>
+		<span class="s1">self.heal = pygame.surface.Surface((</span><span class="s2">1</span><span class="s1">, </span><span class="s2">40</span><span class="s1">))</span>
+		<span class="s1">self.heal.fill(self.green)</span>
+		<span class="s1">self.background = pygame.surface.Surface((self.displayHealth*</span><span class="s2">2</span><span class="s1">, </span><span class="s2">40</span><span class="s1">))</span>
+		<span class="s1">self.background.fill(self.healthBgColour)</span>
+
+		<span class="s1">self.revive = pygame.image.load(</span><span class="s3">&quot;Assets/revive.png&quot;</span><span class="s1">)</span>
+		<span class="s1">self.revive = pygame.transform.scale(self.revive, (</span><span class="s2">60</span><span class="s1">, </span><span class="s2">60</span><span class="s1">))</span>
+		<span class="s1">self.reviveRect = self.revive.get_rect()</span>
+		<span class="s1">self.reviveRect.center = (</span><span class="s2">400</span><span class="s1">, </span><span class="s2">650</span><span class="s1">)</span>
+
+		<span class="s4">#Talking</span>
+		<span class="s1">self.talkBg = pygame.image.load(</span><span class="s3">&quot;Assets/talkBg.png&quot;</span><span class="s1">)</span>
+		<span class="s1">self.talkBgRect = self.talkBg.get_rect()</span>
+		<span class="s1">self.talkBgRect.center = (</span><span class="s2">900</span><span class="s1">, </span><span class="s2">400</span><span class="s1">)</span>
+
+		<span class="s1">self.textbox = pygame.Surface((</span><span class="s2">800</span><span class="s1">, </span><span class="s2">250</span><span class="s1">), pygame.SRCALPHA)</span>
+		<span class="s1">self.textbox.fill((</span><span class="s2">0</span><span class="s1">, </span><span class="s2">0</span><span class="s1">, </span><span class="s2">0</span><span class="s1">, </span><span class="s2">150</span><span class="s1">))</span>
+		<span class="s1">self.textboxRect = self.textbox.get_rect()</span>
+		<span class="s1">self.textboxRect.bottomright = (</span><span class="s2">0</span><span class="s1">, </span><span class="s2">800</span><span class="s1">)</span>
+
+		<span class="s1">self.textDone = </span><span class="s0">False</span>
+		<span class="s1">self.jitter = </span><span class="s0">False</span>
+		<span class="s1">self.letters = </span><span class="s2">0</span>
+		<span class="s1">self.letterStart = </span><span class="s2">0</span>
+		<span class="s1">self.chatNumber = </span><span class="s2">0</span>
+		<span class="s1">self.optionSelect = </span><span class="s2">0</span>
+		<span class="s1">self.chatPos = </span><span class="s0">False</span>
+		<span class="s1">self.cooldown = </span><span class="s0">False</span>
+		<span class="s1">self.font = pygame.font.SysFont(</span><span class="s3">'Times New Roman'</span><span class="s1">, </span><span class="s2">40</span><span class="s1">)</span>
+
+		<span class="s1">self.message = </span><span class="s3">&quot;My name is EDWIN, I made the mimic.&quot;</span>
+		<span class="s1">self.text = self.font.render((</span><span class="s3">&quot;&quot;</span><span class="s1">), </span><span class="s0">False</span><span class="s1">, (</span><span class="s2">255</span><span class="s1">, </span><span class="s2">255</span><span class="s1">, </span><span class="s2">255</span><span class="s1">))</span>
+		<span class="s1">self.textList = []</span>
+
+		<span class="s1">self.continueTxt = self.font.render((</span><span class="s3">&quot;Press space to continue&quot;</span><span class="s1">), </span><span class="s0">False</span><span class="s1">, (</span><span class="s2">255</span><span class="s1">, </span><span class="s2">255</span><span class="s1">, </span><span class="s2">255</span><span class="s1">))</span>
+		<span class="s1">self.continueDis = </span><span class="s0">False</span>
+		<span class="s1">self.optionDis = </span><span class="s0">False</span>
+
+		<span class="s4">#Menu</span>
+		<span class="s1">self.menuBg = pygame.Surface((</span><span class="s2">800</span><span class="s1">, </span><span class="s2">800</span><span class="s1">), pygame.SRCALPHA)</span>
+		<span class="s1">self.menuBg.fill((</span><span class="s2">0</span><span class="s1">, </span><span class="s2">0</span><span class="s1">, </span><span class="s2">0</span><span class="s1">, </span><span class="s2">150</span><span class="s1">))</span>
+		<span class="s1">self.menuBgRect = self.menuBg.get_rect()</span>
+		<span class="s1">self.menuBgRect.topleft = (</span><span class="s2">0</span><span class="s1">, </span><span class="s2">800</span><span class="s1">)</span>
+
+		<span class="s1">self.menuPos = </span><span class="s2">0</span>
+		<span class="s1">self.menuOptions = [</span><span class="s3">&quot;Resume&quot;</span><span class="s1">, </span><span class="s3">&quot;Items&quot;</span><span class="s1">, </span><span class="s3">&quot;Controls&quot;</span><span class="s1">]</span>
+		<span class="s1">self.menuTxt = []</span>
+		<span class="s0">for </span><span class="s1">op </span><span class="s0">in </span><span class="s1">self.menuOptions:</span>
+			<span class="s1">self.menuTxt.append(self.font.render(op, </span><span class="s0">False</span><span class="s1">, (</span><span class="s2">255</span><span class="s1">, </span><span class="s2">255</span><span class="s1">, </span><span class="s2">255</span><span class="s1">)))</span>
+		<span class="s1">self.menuActivity = </span><span class="s0">False</span>
+
+		<span class="s1">self.inventoryPos = </span><span class="s2">0</span>
+		<span class="s1">self.inventoryOptions = []</span>
+		<span class="s1">self.inventoryText = []</span>
+		<span class="s1">self.details = []</span>
+		<span class="s1">self.startTime = pygame.time.get_ticks()</span>
+		<span class="s1">self.escapeText = self.font.render(</span><span class="s3">&quot;Press escape to go back to menu&quot;</span><span class="s1">, </span><span class="s0">False</span><span class="s1">, (</span><span class="s2">255</span><span class="s1">, </span><span class="s2">255</span><span class="s1">, </span><span class="s2">255</span><span class="s1">))</span>
+		<span class="s1">self.controlText = []</span>
+
+	<span class="s3">''' 
+    Name: draw 
+    Parameters: screen:rect 
+    Returns: None 
+    Purpose: Displays the Hud 
+    '''</span>
+	<span class="s0">def </span><span class="s1">draw(self, screen):</span>
+		<span class="s1">screen.blit(self.background, (TILE_SIZE // </span><span class="s2">4 </span><span class="s1">+ </span><span class="s2">10</span><span class="s1">, TILE_SIZE // </span><span class="s2">4 </span><span class="s1">+ </span><span class="s2">10</span><span class="s1">))</span>
+		<span class="s1">screen.blit(self.damage,((TILE_SIZE//</span><span class="s2">4</span><span class="s1">) + </span><span class="s2">10 </span><span class="s1">+ (self.displayHealth * </span><span class="s2">2</span><span class="s1">) - </span><span class="s2">1</span><span class="s1">, TILE_SIZE//</span><span class="s2">4 </span><span class="s1">+ </span><span class="s2">10</span><span class="s1">))</span>
+		<span class="s1">screen.blit(self.heal, ((TILE_SIZE // </span><span class="s2">4</span><span class="s1">) + </span><span class="s2">10 </span><span class="s1">+ (self.displayHealth * </span><span class="s2">2</span><span class="s1">) - </span><span class="s2">1</span><span class="s1">, TILE_SIZE // </span><span class="s2">4 </span><span class="s1">+ </span><span class="s2">10</span><span class="s1">))</span>
+		<span class="s1">screen.blit(self.health,(TILE_SIZE//</span><span class="s2">4 </span><span class="s1">+ </span><span class="s2">10 </span><span class="s1">- </span><span class="s2">1</span><span class="s1">, TILE_SIZE//</span><span class="s2">4 </span><span class="s1">+ </span><span class="s2">10</span><span class="s1">))</span>
+		<span class="s1">screen.blit(self.healthbar, (TILE_SIZE//</span><span class="s2">4</span><span class="s1">, TILE_SIZE//</span><span class="s2">4</span><span class="s1">))</span>
+
+		<span class="s0">if </span><span class="s1">self.owner.talking:</span>
+			<span class="s4">#Layoutss</span>
+			<span class="s1">screen.blit(self.talkBg, self.talkBgRect)</span>
+			<span class="s1">screen.blit(self.speaker, self.speakerRect)</span>
+			<span class="s1">screen.blit(self.textbox, self.textboxRect)</span>
+			<span class="s4">#Text</span>
+			<span class="s0">if not </span><span class="s1">self.animation:</span>
+				<span class="s4">#Dialogue</span>
+				<span class="s1">x,y = </span><span class="s2">10</span><span class="s1">, </span><span class="s2">560</span>
+				<span class="s0">for </span><span class="s1">text </span><span class="s0">in </span><span class="s1">self.textList:</span>
+					<span class="s1">screen.blit(text, (x, y))</span>
+					<span class="s1">y += </span><span class="s2">45</span>
+				<span class="s1">screen.blit(self.text, (x, y))</span>
+				<span class="s4">#Continue options</span>
+				<span class="s0">if </span><span class="s1">self.continueDis:</span>
+					<span class="s1">screen.blit(self.continueTxt, (</span><span class="s2">420</span><span class="s1">, </span><span class="s2">755</span><span class="s1">))</span>
+				<span class="s0">elif </span><span class="s1">self.optionDis:</span>
+					<span class="s1">x, y = </span><span class="s2">600</span><span class="s1">, </span><span class="s2">560</span>
+					<span class="s0">for </span><span class="s1">option </span><span class="s0">in </span><span class="s1">self.optionDis:</span>
+						<span class="s1">screen.blit(option, (x, y))</span>
+						<span class="s1">y += </span><span class="s2">45</span>
+		<span class="s0">if </span><span class="s1">self.owner.paused </span><span class="s0">or </span><span class="s1">self.animation == </span><span class="s3">&quot;menuC&quot;</span><span class="s1">:</span>
+			<span class="s1">screen.blit(self.menuBg, self.menuBgRect)</span>
+			<span class="s0">if not </span><span class="s1">self.animation:</span>
+				<span class="s0">if not </span><span class="s1">self.menuActivity:</span>
+					<span class="s1">x,y = </span><span class="s2">300</span><span class="s1">, </span><span class="s2">200</span>
+					<span class="s0">for </span><span class="s1">text </span><span class="s0">in </span><span class="s1">self.menuTxt:</span>
+						<span class="s1">screen.blit(text, (x, y))</span>
+						<span class="s1">y += </span><span class="s2">60</span>
+
+				<span class="s0">if </span><span class="s1">self.menuActivity == </span><span class="s3">&quot;Items&quot;</span><span class="s1">:</span>
+					<span class="s1">x, y = </span><span class="s2">20</span><span class="s1">, </span><span class="s2">40</span>
+					<span class="s0">for </span><span class="s1">text </span><span class="s0">in </span><span class="s1">self.inventoryText:</span>
+						<span class="s1">screen.blit(text, (x, y))</span>
+						<span class="s1">y += </span><span class="s2">50</span>
+					<span class="s1">x, y = </span><span class="s2">200</span><span class="s1">, </span><span class="s2">460</span>
+					<span class="s0">for </span><span class="s1">text </span><span class="s0">in </span><span class="s1">self.details[</span><span class="s2">0</span><span class="s1">]:</span>
+						<span class="s1">screen.blit(text, (x, y))</span>
+						<span class="s1">y += </span><span class="s2">60</span>
+					<span class="s1">screen.blit(self.weaponImage, self.weaponRect)</span>
+					<span class="s1">screen.blit(self.details[</span><span class="s2">1</span><span class="s1">], (</span><span class="s2">600</span><span class="s1">,</span><span class="s2">400</span><span class="s1">))</span>
+					<span class="s1">screen.blit(self.details[</span><span class="s2">2</span><span class="s1">], (</span><span class="s2">200</span><span class="s1">, </span><span class="s2">400</span><span class="s1">))</span>
+					<span class="s1">screen.blit(self.escapeText, (</span><span class="s2">200</span><span class="s1">, </span><span class="s2">730</span><span class="s1">))</span>
+
+				<span class="s0">if </span><span class="s1">self.menuActivity == </span><span class="s3">&quot;Controls&quot;</span><span class="s1">:</span>
+					<span class="s1">x, y = </span><span class="s2">100</span><span class="s1">, </span><span class="s2">200</span>
+					<span class="s0">for </span><span class="s1">control </span><span class="s0">in </span><span class="s1">self.controlText:</span>
+						<span class="s1">screen.blit(control, (x, y))</span>
+						<span class="s1">y += </span><span class="s2">60</span>
+					<span class="s1">screen.blit(self.escapeText, (</span><span class="s2">200</span><span class="s1">, </span><span class="s2">730</span><span class="s1">))</span>
+
+		<span class="s0">if </span><span class="s1">self.owner.revive:</span>
+			<span class="s1">screen.blit(self.revive, self.reviveRect)</span>
+
+	<span class="s3">''' 
+    Name: startAnimation 
+    Parameters: type:string, npc:object 
+    Returns: None 
+    Purpose: This is used to manage starting animations and any processes that need to be completed first. 
+    '''</span>
+	<span class="s0">def </span><span class="s1">startAnimation(self, type, npc = </span><span class="s0">False</span><span class="s1">):</span>
+		<span class="s0">if </span><span class="s1">type == </span><span class="s3">&quot;open&quot;</span><span class="s1">:</span>
+			<span class="s1">self.jitter = </span><span class="s0">False</span>
+			<span class="s1">self.animation = </span><span class="s3">&quot;open&quot;</span>
+			<span class="s1">self.speaker, self.dialogue, self.chatPos = npc.getSpeaker()</span>
+			<span class="s1">self.speakerRect = self.speaker.get_rect()</span>
+			<span class="s1">self.textboxRect.bottomright = (</span><span class="s2">0</span><span class="s1">, </span><span class="s2">800</span><span class="s1">)</span>
+			<span class="s1">self.speakerRect.center = </span><span class="s2">860</span><span class="s1">, </span><span class="s2">400</span>
+			<span class="s1">self.talkBgRect.center = (</span><span class="s2">900</span><span class="s1">, </span><span class="s2">400</span><span class="s1">)</span>
+			<span class="s0">for </span><span class="s1">node </span><span class="s0">in </span><span class="s1">self.dialogue.nodes:</span>
+				<span class="s0">if </span><span class="s1">node.name == self.chatPos:</span>
+					<span class="s1">self.chatPos = node</span>
+					<span class="s1">self.chatNumber = random.randint(</span><span class="s2">0</span><span class="s1">, len(self.chatPos.neighbours)-</span><span class="s2">1</span><span class="s1">)</span>
+		<span class="s0">elif </span><span class="s1">type == </span><span class="s3">&quot;close&quot;</span><span class="s1">:</span>
+			<span class="s1">self.animation = </span><span class="s3">&quot;close&quot;</span>
+
+		<span class="s0">elif </span><span class="s1">type == </span><span class="s3">&quot;menu&quot;</span><span class="s1">:</span>
+			<span class="s1">self.menuBgRect.topleft = (</span><span class="s2">0</span><span class="s1">, </span><span class="s2">800</span><span class="s1">)</span>
+			<span class="s1">self.animation = </span><span class="s3">&quot;menuO&quot;</span>
+		<span class="s0">elif </span><span class="s1">type == </span><span class="s3">&quot;menuC&quot;</span><span class="s1">:</span>
+			<span class="s1">self.animation = </span><span class="s3">&quot;menuC&quot;</span>
+
+	<span class="s3">''' 
+    Name: animateTalk 
+    Parameters: None 
+    Returns: None 
+    Purpose: Dynamically moves the components of the talk menu. 
+    '''</span>
+	<span class="s0">def </span><span class="s1">animateTalk(self):</span>
+		<span class="s1">increment = </span><span class="s2">0</span>
+		<span class="s0">if </span><span class="s1">self.talkBgRect.center[</span><span class="s2">0</span><span class="s1">] &gt; </span><span class="s2">500</span><span class="s1">:</span>
+			<span class="s1">increment = </span><span class="s2">20</span>
+		<span class="s0">elif </span><span class="s1">self.talkBgRect.center[</span><span class="s2">0</span><span class="s1">] &gt; </span><span class="s2">440</span><span class="s1">:</span>
+			<span class="s1">increment = </span><span class="s2">10</span>
+		<span class="s0">elif </span><span class="s1">self.talkBgRect.center[</span><span class="s2">0</span><span class="s1">] &lt;= </span><span class="s2">440 </span><span class="s0">and not </span><span class="s1">self.jitter:</span>
+			<span class="s1">increment = </span><span class="s2">10</span>
+		<span class="s0">elif </span><span class="s1">self.talkBgRect.center[</span><span class="s2">0</span><span class="s1">] &lt; </span><span class="s2">440 </span><span class="s0">and </span><span class="s1">self.jitter:</span>
+			<span class="s1">increment = -</span><span class="s2">10</span>
+		<span class="s1">self.talkBgRect.x -= increment</span>
+		<span class="s0">if </span><span class="s1">self.talkBgRect.center[</span><span class="s2">0</span><span class="s1">] &lt;= </span><span class="s2">420</span><span class="s1">:</span>
+			<span class="s1">self.jitter = </span><span class="s0">True</span>
+		<span class="s0">if </span><span class="s1">self.talkBgRect.center[</span><span class="s2">0</span><span class="s1">] == </span><span class="s2">440 </span><span class="s0">and </span><span class="s1">self.jitter:</span>
+			<span class="s1">self.animation = </span><span class="s0">False</span>
+
+		<span class="s0">if </span><span class="s1">self.textboxRect.center[</span><span class="s2">0</span><span class="s1">] != </span><span class="s2">400</span><span class="s1">:</span>
+			<span class="s1">self.textboxRect.x += </span><span class="s2">40</span>
+
+		<span class="s0">if </span><span class="s1">self.speakerRect.center[</span><span class="s2">0</span><span class="s1">] != </span><span class="s2">500</span><span class="s1">:</span>
+			<span class="s1">self.speakerRect.x -= </span><span class="s2">30</span>
+
+	<span class="s3">''' 
+    Name: animateExit 
+    Parameters: None 
+    Returns: None 
+    Purpose: Dynamically moves the background components to create an animation. 
+    '''</span>
+	<span class="s0">def </span><span class="s1">animateExit(self):</span>
+		<span class="s1">increment = </span><span class="s2">0</span>
+		<span class="s0">if </span><span class="s1">self.talkBgRect.center[</span><span class="s2">0</span><span class="s1">] &lt; </span><span class="s2">650</span><span class="s1">:</span>
+			<span class="s1">increment = </span><span class="s2">20</span>
+		<span class="s0">else</span><span class="s1">:</span>
+			<span class="s1">increment = </span><span class="s2">40</span>
+			<span class="s1">self.speakerRect.x += </span><span class="s2">30</span>
+		<span class="s1">self.textboxRect.x -= increment</span>
+		<span class="s1">self.talkBgRect.x += increment</span>
+		<span class="s0">if </span><span class="s1">self.speakerRect.x &gt; </span><span class="s2">800</span><span class="s1">:</span>
+			<span class="s1">self.owner.talking = </span><span class="s0">False</span>
+
+	<span class="s3">''' 
+    Name: animateMenu 
+    Parameters: reverse:boolean 
+    Returns: None 
+    Purpose: Will move the menu box up and down depending on if reverse is True. 
+    '''</span>
+	<span class="s0">def </span><span class="s1">animateMenu(self, reverse = </span><span class="s0">False</span><span class="s1">):</span>
+		<span class="s1">goal = </span><span class="s2">0</span>
+		<span class="s0">if </span><span class="s1">self.menuBgRect.topleft[</span><span class="s2">1</span><span class="s1">] &gt; </span><span class="s2">500</span><span class="s1">:</span>
+			<span class="s1">increment = </span><span class="s2">50</span>
+		<span class="s0">elif </span><span class="s1">self.menuBgRect.topleft[</span><span class="s2">1</span><span class="s1">] &gt; </span><span class="s2">200</span><span class="s1">:</span>
+			<span class="s1">increment = </span><span class="s2">30</span>
+		<span class="s0">else</span><span class="s1">:</span>
+			<span class="s1">increment = </span><span class="s2">20</span>
+		<span class="s0">if </span><span class="s1">reverse:</span>
+			<span class="s1">increment = increment *-</span><span class="s2">1</span>
+			<span class="s1">goal = </span><span class="s2">800</span>
+		<span class="s1">self.menuBgRect.y -= increment</span>
+		<span class="s0">if </span><span class="s1">self.menuBgRect.y == goal:</span>
+			<span class="s1">self.animation = </span><span class="s0">False</span>
+
+	<span class="s3">''' 
+    Name: animate 
+    Parameters: None 
+    Returns: None 
+    Purpose: Calls all relevant operations depending on what state the player is in and if an animation is playing. 
+    '''</span>
+	<span class="s0">def </span><span class="s1">animate(self):</span>
+		<span class="s1">self.healthCalc(self.owner.health)</span>
+		<span class="s0">if </span><span class="s1">self.owner.talking:</span>
+			<span class="s4">#animations</span>
+			<span class="s0">if </span><span class="s1">self.animation:</span>
+				<span class="s0">if </span><span class="s1">self.animation == </span><span class="s3">&quot;open&quot;</span><span class="s1">:</span>
+					<span class="s1">self.animateTalk()</span>
+				<span class="s0">elif </span><span class="s1">self.animation == </span><span class="s3">&quot;close&quot;</span><span class="s1">:</span>
+					<span class="s1">self.animateExit()</span>
+			<span class="s0">else</span><span class="s1">:</span>
+				<span class="s1">self.nextDialogue()</span>
+				<span class="s1">self.disText()</span>
+		<span class="s4">#Paused</span>
+		<span class="s0">elif </span><span class="s1">self.owner.paused </span><span class="s0">or </span><span class="s1">self.animation == </span><span class="s3">&quot;menuC&quot;</span><span class="s1">:</span>
+			<span class="s0">if </span><span class="s1">self.animation == </span><span class="s3">&quot;menuO&quot;</span><span class="s1">:</span>
+				<span class="s1">self.animateMenu()</span>
+			<span class="s0">elif </span><span class="s1">self.animation == </span><span class="s3">&quot;menuC&quot;</span><span class="s1">:</span>
+				<span class="s1">self.animateMenu(</span><span class="s0">True</span><span class="s1">)</span>
+			<span class="s0">else</span><span class="s1">:</span>
+				<span class="s0">if not </span><span class="s1">self.menuActivity:</span>
+					<span class="s1">self.menuTxt, self.menuPos, confirm = self.menu(self.menuTxt, self.menuPos, self.menuOptions)</span>
+					<span class="s0">if </span><span class="s1">confirm:</span>
+						<span class="s0">if </span><span class="s1">self.menuOptions[self.menuPos] == </span><span class="s3">&quot;Resume&quot;</span><span class="s1">:</span>
+							<span class="s1">self.startAnimation(</span><span class="s3">&quot;menuC&quot;</span><span class="s1">)</span>
+							<span class="s1">self.owner.tell_server(</span><span class="s3">&quot;unpause&quot;</span><span class="s1">)</span>
+							<span class="s1">self.owner.paused = </span><span class="s0">False</span>
+						<span class="s0">elif </span><span class="s1">self.menuOptions[self.menuPos] == </span><span class="s3">&quot;Items&quot;</span><span class="s1">:</span>
+							<span class="s1">self.menuActivity = </span><span class="s3">&quot;Items&quot;</span>
+							<span class="s1">self.inventoryOptions = []</span>
+							<span class="s0">for </span><span class="s1">item </span><span class="s0">in </span><span class="s1">self.owner.inventory:</span>
+								<span class="s1">self.inventoryOptions.append(item.name)</span>
+							<span class="s1">self.startTime = pygame.time.get_ticks()</span>
+							<span class="s1">self.inventory()</span>
+						<span class="s0">elif </span><span class="s1">self.menuOptions[self.menuPos] == </span><span class="s3">&quot;Controls&quot;</span><span class="s1">:</span>
+							<span class="s1">self.menuActivity = </span><span class="s3">&quot;Controls&quot;</span>
+							<span class="s1">self.startTime = pygame.time.get_ticks()</span>
+				<span class="s0">elif </span><span class="s1">self.menuActivity == </span><span class="s3">&quot;Items&quot;</span><span class="s1">:</span>
+					<span class="s1">self.inventory()</span>
+				<span class="s0">elif </span><span class="s1">self.menuActivity == </span><span class="s3">&quot;Controls&quot;</span><span class="s1">:</span>
+					<span class="s1">self.controls()</span>
+
+	<span class="s3">''' 
+    Name: menu 
+    Parameters: list:list, position:int, optionList:list 
+    Returns: list:list, position:int, boolean 
+    Purpose: This detects if the player has inputted to move or select an item in the list. If not then a list of images  
+    of each option is created with the one being hovered over being coloured in red. The boolean that is returned  
+    signifies if the player has or hasn't selected. 
+    '''</span>
+	<span class="s0">def </span><span class="s1">menu(self, list, position, optionList):</span>
+		<span class="s1">keys = pygame.key.get_pressed()</span>
+		<span class="s4">#confirm</span>
+		<span class="s0">if </span><span class="s1">keys[pygame.K_SPACE]:</span>
+			<span class="s0">return </span><span class="s1">list, position, </span><span class="s0">True</span>
+		<span class="s0">if </span><span class="s1">self.cooldown:</span>
+			<span class="s0">if </span><span class="s1">pygame.time.get_ticks() - self.cooldown &gt; </span><span class="s2">250</span><span class="s1">:</span>
+				<span class="s1">self.cooldown = </span><span class="s0">False</span>
+		<span class="s4"># Move up</span>
+		<span class="s0">if </span><span class="s1">keys[pygame.K_w] </span><span class="s0">and </span><span class="s1">position &gt; </span><span class="s2">0 </span><span class="s0">and not </span><span class="s1">self.cooldown:</span>
+			<span class="s1">position -= </span><span class="s2">1</span>
+			<span class="s1">self.cooldown = pygame.time.get_ticks()</span>
+		<span class="s4"># Move down</span>
+		<span class="s0">if </span><span class="s1">list:</span>
+			<span class="s0">if </span><span class="s1">keys[pygame.K_s] </span><span class="s0">and </span><span class="s1">position &lt; len(list) - </span><span class="s2">1 </span><span class="s0">and not </span><span class="s1">self.cooldown:</span>
+				<span class="s1">position += </span><span class="s2">1</span>
+				<span class="s1">self.cooldown = pygame.time.get_ticks()</span>
+		<span class="s4"># Creating options</span>
+		<span class="s1">list = []</span>
+		<span class="s0">for </span><span class="s1">i </span><span class="s0">in </span><span class="s1">optionList:</span>
+			<span class="s0">if </span><span class="s1">len(list) == position:</span>
+				<span class="s1">list.append(self.font.render(i, </span><span class="s0">False</span><span class="s1">, (</span><span class="s2">255</span><span class="s1">, </span><span class="s2">0</span><span class="s1">, </span><span class="s2">0</span><span class="s1">)))</span>
+			<span class="s0">else</span><span class="s1">:</span>
+				<span class="s1">list.append(self.font.render(i, </span><span class="s0">False</span><span class="s1">, (</span><span class="s2">255</span><span class="s1">, </span><span class="s2">255</span><span class="s1">, </span><span class="s2">255</span><span class="s1">)))</span>
+		<span class="s0">return </span><span class="s1">list, position, </span><span class="s0">False</span>
+
+	<span class="s3">''' 
+    Name: nextDialogue 
+    Parameters: None 
+    Returns: None 
+    Purpose: Once a line of dialogue has finished being outputted, depending on whether there is a branch in the  
+    path or not this function will either call a menu or progress to the next dialogue if it has detected an input.  
+    '''</span>
+	<span class="s0">def </span><span class="s1">nextDialogue(self):</span>
+		<span class="s0">if </span><span class="s1">self.textDone:</span>
+			<span class="s4">#Handles starting new dialogue if there is only 1 option in the dialogue graph</span>
+			<span class="s0">if </span><span class="s1">len(self.chatPos.neighbours) &lt;= </span><span class="s2">1</span><span class="s1">:</span>
+				<span class="s1">keys = pygame.key.get_pressed()</span>
+				<span class="s0">if </span><span class="s1">keys[pygame.K_SPACE]:</span>
+					<span class="s0">if </span><span class="s1">self.chatPos.name != </span><span class="s3">&quot;end&quot;</span><span class="s1">:</span>
+						<span class="s1">self.chatPos = self.chatPos.neighbours[</span><span class="s2">0</span><span class="s1">]</span>
+						<span class="s1">self.chatNumber = random.randint(</span><span class="s2">0</span><span class="s1">, len(self.chatPos.dialogue) - </span><span class="s2">1</span><span class="s1">)</span>
+					<span class="s0">else</span><span class="s1">:</span>
+						<span class="s1">self.owner.endTalk()</span>
+					<span class="s1">self.letters = </span><span class="s2">0</span>
+					<span class="s1">self.letterStart = </span><span class="s2">0</span>
+					<span class="s1">self.textList = []</span>
+					<span class="s1">self.continueDis = </span><span class="s0">False</span>
+					<span class="s1">self.textDone = </span><span class="s0">False</span>
+				<span class="s0">else</span><span class="s1">:</span>
+					<span class="s1">self.continueDis = </span><span class="s0">True</span>
+			<span class="s4"># Handles starting new dialogue if there is more than 1 option</span>
+			<span class="s0">elif </span><span class="s1">len(self.chatPos.neighbours) &gt;= </span><span class="s2">2</span><span class="s1">:</span>
+
+				<span class="s1">list = []</span>
+				<span class="s0">for </span><span class="s1">n </span><span class="s0">in </span><span class="s1">self.chatPos.neighbours:</span>
+					<span class="s0">if </span><span class="s1">n.condition == </span><span class="s0">False</span><span class="s1">:</span>
+						<span class="s1">list.append(n.option)</span>
+				<span class="s1">self.optionDis, self.optionSelect, confirm = self.menu(self.optionDis, self.optionSelect, list)</span>
+
+				<span class="s4">#Moves to next dialogue</span>
+				<span class="s0">if </span><span class="s1">confirm:</span>
+					<span class="s1">self.chatPos = self.chatPos.neighbours[self.optionSelect]</span>
+					<span class="s1">self.chatNumber = random.randint(</span><span class="s2">0</span><span class="s1">, len(self.chatPos.dialogue) - </span><span class="s2">1</span><span class="s1">)</span>
+					<span class="s1">self.letters = </span><span class="s2">0</span>
+					<span class="s1">self.letterStart = </span><span class="s2">0</span>
+					<span class="s1">self.optionSelect = </span><span class="s2">0</span>
+					<span class="s1">self.textList = []</span>
+					<span class="s1">self.textDone = </span><span class="s0">False</span>
+					<span class="s1">self.optionDis = </span><span class="s0">False</span>
+
+		<span class="s1">self.message = self.chatPos.dialogue[self.chatNumber]</span>
+
+	<span class="s3">''' 
+    Name: inventory 
+    Parameters: None 
+    Returns: None 
+    Purpose: This displays items in the players inventory. It will the display details about the selected weapon and can  
+    be changed by using menu function. Also in charge of selecting the players active weapon. 
+    '''</span>
+	<span class="s0">def </span><span class="s1">inventory(self):</span>
+		<span class="s1">self.inventoryText, self.inventoryPos, confirm = self.menu(self.inventoryText, self.inventoryPos,</span>
+																   <span class="s1">self.inventoryOptions)</span>
+		<span class="s0">if </span><span class="s1">confirm </span><span class="s0">and </span><span class="s1">self.owner.activeWeapon != self.owner.inventory[self.inventoryPos] </span><span class="s0">and </span><span class="s1">pygame.time.get_ticks() - self.startTime &gt; </span><span class="s2">300</span><span class="s1">:</span>
+			<span class="s1">self.owner.activeWeapon = self.owner.inventory[self.inventoryPos]</span>
+			<span class="s1">self.owner.tell_server(</span><span class="s3">&quot;weapon&quot;</span><span class="s1">, self.owner.activeWeapon.name)</span>
+		<span class="s1">weapon = self.owner.inventory[self.inventoryPos]</span>
+		<span class="s1">self.details = [[], weapon.damage]</span>
+		<span class="s0">if </span><span class="s1">self.owner.activeWeapon == weapon:</span>
+			<span class="s1">self.details.append(</span><span class="s3">&quot;Equipped&quot;</span><span class="s1">)</span>
+		<span class="s0">else</span><span class="s1">:</span>
+			<span class="s1">self.details.append(</span><span class="s3">&quot;Press space to equip&quot;</span><span class="s1">)</span>
+		<span class="s1">message = </span><span class="s3">&quot;&quot;</span>
+		<span class="s1">count = </span><span class="s2">0</span>
+		<span class="s1">start = </span><span class="s2">0</span>
+		<span class="s0">for </span><span class="s1">letter </span><span class="s0">in </span><span class="s1">weapon.description:</span>
+			<span class="s0">if </span><span class="s1">count - start &gt; </span><span class="s2">30 </span><span class="s0">and </span><span class="s1">weapon.description[count - </span><span class="s2">1</span><span class="s1">] == </span><span class="s3">&quot; &quot;</span><span class="s1">:</span>
+				<span class="s1">self.details[</span><span class="s2">0</span><span class="s1">].append(message)</span>
+				<span class="s1">message = </span><span class="s3">&quot;&quot;</span>
+				<span class="s1">start = count</span>
+				<span class="s1">count = </span><span class="s2">0</span>
+			<span class="s1">message += letter</span>
+			<span class="s1">count += </span><span class="s2">1</span>
+		<span class="s0">if </span><span class="s1">message:</span>
+			<span class="s1">self.details[</span><span class="s2">0</span><span class="s1">].append(message)</span>
+		<span class="s0">for </span><span class="s1">count </span><span class="s0">in </span><span class="s1">range(len(self.details[</span><span class="s2">0</span><span class="s1">])):</span>
+			<span class="s1">self.details[</span><span class="s2">0</span><span class="s1">][count] = self.font.render(self.details[</span><span class="s2">0</span><span class="s1">][count], </span><span class="s0">False</span><span class="s1">, (</span><span class="s2">255</span><span class="s1">, </span><span class="s2">255</span><span class="s1">, </span><span class="s2">255</span><span class="s1">))</span>
+		<span class="s1">self.details[</span><span class="s2">1</span><span class="s1">] = self.font.render(</span><span class="s3">&quot;Damage: &quot; </span><span class="s1">+ str(self.details[</span><span class="s2">1</span><span class="s1">]), </span><span class="s0">False</span><span class="s1">, (</span><span class="s2">255</span><span class="s1">, </span><span class="s2">255</span><span class="s1">, </span><span class="s2">255</span><span class="s1">))</span>
+		<span class="s1">self.details[</span><span class="s2">2</span><span class="s1">] = self.font.render(self.details[</span><span class="s2">2</span><span class="s1">], </span><span class="s0">False</span><span class="s1">, (</span><span class="s2">255</span><span class="s1">, </span><span class="s2">255</span><span class="s1">, </span><span class="s2">255</span><span class="s1">))</span>
+		<span class="s1">self.weaponImage = weapon.inventoryImage</span>
+		<span class="s1">self.weaponRect = self.weaponImage.get_rect()</span>
+		<span class="s1">self.weaponRect.center = (</span><span class="s2">400</span><span class="s1">, </span><span class="s2">200</span><span class="s1">)</span>
+		<span class="s1">keys = pygame.key.get_pressed()</span>
+		<span class="s0">if </span><span class="s1">keys[pygame.K_ESCAPE]:</span>
+			<span class="s1">self.menuActivity = </span><span class="s0">False</span>
+
+	<span class="s0">def </span><span class="s1">controls(self):</span>
+		<span class="s1">self.controlOptions = []</span>
+		<span class="s0">if </span><span class="s1">self.owner.movementKeys[</span><span class="s3">&quot;up&quot;</span><span class="s1">] == pygame.K_w:</span>
+			<span class="s1">self.controlOptions.append(</span><span class="s3">&quot;Movement keys:   WASD&quot;</span><span class="s1">)</span>
+		<span class="s0">else</span><span class="s1">:</span>
+			<span class="s1">self.controlOptions.append(</span><span class="s3">&quot;Movement keys:   Arrows&quot;</span><span class="s1">)</span>
+
+		<span class="s1">self.controlText, blank, confirm = self.menu(self.controlText, </span><span class="s2">0</span><span class="s1">, self.controlOptions)</span>
+		<span class="s0">if </span><span class="s1">confirm </span><span class="s0">and </span><span class="s1">pygame.time.get_ticks() - self.startTime &gt; </span><span class="s2">300</span><span class="s1">:</span>
+			<span class="s0">if </span><span class="s1">self.owner.movementKeys[</span><span class="s3">&quot;up&quot;</span><span class="s1">] == pygame.K_w:</span>
+				<span class="s1">self.owner.movementKeys = {</span><span class="s3">&quot;up&quot;</span><span class="s1">:pygame.K_UP, </span><span class="s3">&quot;down&quot;</span><span class="s1">:pygame.K_DOWN, </span><span class="s3">&quot;left&quot;</span><span class="s1">:pygame.K_LEFT, </span><span class="s3">&quot;right&quot;</span><span class="s1">:pygame.K_RIGHT}</span>
+			<span class="s0">else</span><span class="s1">:</span>
+				<span class="s1">self.owner.movementKeys = {</span><span class="s3">&quot;up&quot;</span><span class="s1">: pygame.K_w, </span><span class="s3">&quot;down&quot;</span><span class="s1">: pygame.K_s, </span><span class="s3">&quot;left&quot;</span><span class="s1">: pygame.K_a, </span><span class="s3">&quot;right&quot;</span><span class="s1">: pygame.K_d}</span>
+			<span class="s1">self.startTime = pygame.time.get_ticks()</span>
+		<span class="s1">keys = pygame.key.get_pressed()</span>
+		<span class="s0">if </span><span class="s1">keys[pygame.K_ESCAPE]:</span>
+			<span class="s1">self.menuActivity = </span><span class="s0">False</span>
+
+	<span class="s3">''' 
+    Name: disText 
+    Parameters: None 
+    Returns: None 
+    Purpose: Will display a message adding 1 letter each time the function is called until the full message is displayed. 
+    Will start a new line if the message is getting too long.  
+    '''</span>
+	<span class="s0">def </span><span class="s1">disText(self):</span>
+		<span class="s0">if </span><span class="s1">self.letters != len(self.message):</span>
+			<span class="s1">self.letters += </span><span class="s2">1</span>
+			<span class="s0">if </span><span class="s1">self.letters - self.letterStart &gt; </span><span class="s2">40 </span><span class="s0">and </span><span class="s1">self.message[self.letters-</span><span class="s2">1</span><span class="s1">] == </span><span class="s3">&quot; &quot;</span><span class="s1">:</span>
+				<span class="s1">self.textList.append(self.font.render(self.message[self.letterStart:self.letters], </span><span class="s0">False</span><span class="s1">, (</span><span class="s2">255</span><span class="s1">, </span><span class="s2">255</span><span class="s1">, </span><span class="s2">255</span><span class="s1">)))</span>
+				<span class="s1">self.letterStart = self.letters</span>
+			<span class="s1">self.text = self.font.render(self.message[self.letterStart:self.letters], </span><span class="s0">False</span><span class="s1">, (</span><span class="s2">255</span><span class="s1">, </span><span class="s2">255</span><span class="s1">, </span><span class="s2">255</span><span class="s1">))</span>
+		<span class="s0">else</span><span class="s1">:</span>
+			<span class="s1">self.textDone = </span><span class="s0">True</span>
+
+
+	<span class="s3">''' 
+    Name: healthCalc 
+    Parameters: health:int 
+    Returns: None 
+    Purpose: This calculates the length of the healthbar and the amount of damage or heal that needs to be displayed (The  
+    damage and heal bars lengths will slowly decrease).  
+    '''</span>
+	<span class="s0">def </span><span class="s1">healthCalc(self, playerHealth):</span>
+		<span class="s0">if </span><span class="s1">self.displayHealth != playerHealth:</span>
+			<span class="s4">#If health has been lost</span>
+			<span class="s0">if </span><span class="s1">playerHealth &lt; self.displayHealth:</span>
+				<span class="s1">self.displayDamage += self.displayHealth - playerHealth</span>
+
+				<span class="s1">self.displayHealth = playerHealth</span>
+				<span class="s4">#This prevents issues when drawing the bar MAYBE SHOULD SHIFT TAB BY ONE?</span>
+				<span class="s0">if </span><span class="s1">self.displayHealth &lt; </span><span class="s2">0</span><span class="s1">:</span>
+					<span class="s1">self.displayHealth = </span><span class="s2">0</span>
+			<span class="s4">#Health is gained</span>
+			<span class="s0">else</span><span class="s1">:</span>
+				<span class="s1">self.displayHealth += </span><span class="s2">1</span>
+				<span class="s1">self.displayHeal = playerHealth - self.displayHealth</span>
+
+		<span class="s0">elif </span><span class="s1">self.displayHeal &gt; </span><span class="s2">0</span><span class="s1">:</span>
+			<span class="s1">self.displayHeal = </span><span class="s2">0</span>
+
+
+		<span class="s4">#This decreases by one over time so that the damage bar slowly disappears</span>
+		<span class="s0">if </span><span class="s1">self.displayDamage &gt; </span><span class="s2">0</span><span class="s1">:</span>
+			<span class="s1">self.displayDamage -= </span><span class="s2">1</span>
+			<span class="s4">#This prevents the damage bar from exceeding the space</span>
+			<span class="s0">if </span><span class="s1">self.displayHealth + self.displayDamage &gt; </span><span class="s2">100</span><span class="s1">:</span>
+				<span class="s1">self.displayDamage = </span><span class="s2">100</span><span class="s1">- self.displayHealth</span>
+
+		<span class="s1">self.health = pygame.transform.scale(self.health, ((self.displayHealth * </span><span class="s2">2</span><span class="s1">) + </span><span class="s2">1</span><span class="s1">, </span><span class="s2">40</span><span class="s1">))</span>
+		<span class="s1">self.damage = pygame.transform.scale(self.damage, ((self.displayDamage * </span><span class="s2">2</span><span class="s1">) + </span><span class="s2">1</span><span class="s1">, </span><span class="s2">40</span><span class="s1">))</span>
+		<span class="s1">self.heal = pygame.transform.scale(self.heal, ((self.displayHeal * </span><span class="s2">2</span><span class="s1">) + </span><span class="s2">1</span><span class="s1">, </span><span class="s2">40</span><span class="s1">))</span>
+
+<span class="s3">''' 
+Name: Camera 
+Purpose: This is used to ensure that when a player travels all entities including the map move appropriately to simulate 
+movement. 
+'''</span>
+<span class="s0">class </span><span class="s1">Camera:</span>
+
+	<span class="s5">''' 
+    Name: __init__ 
+    Parameters: owner:object 
+    Returns: None 
+    Purpose: This Constructs the camera and assigns it to the player so it follows them and not any other players in the server. 
+    '''</span>
+	<span class="s0">def </span><span class="s1">__init__(self, owner):</span>
+		<span class="s1">self.owner = owner</span>
+
+	<span class="s3">''' 
+    Name: reAdjust  
+    Parameters: None 
+    Returns: None 
+    Purpose: This function is designed to readjust the camera so that it always follows the player unless they are at  
+    an edge of the map. 
+    '''</span>
+	<span class="s0">def </span><span class="s1">reAdjust(self):</span>
+		<span class="s0">if </span><span class="s1">self.owner.rect.center[</span><span class="s2">0</span><span class="s1">] != (SCREEN_SIZE[</span><span class="s2">0</span><span class="s1">]//</span><span class="s2">2</span><span class="s1">)-</span><span class="s2">1</span><span class="s1">:</span><span class="s4">#If not center</span>
+			<span class="s0">if </span><span class="s1">self.owner.mapX &gt; (SCREEN_SIZE[</span><span class="s2">0</span><span class="s1">] // </span><span class="s2">2</span><span class="s1">) - </span><span class="s2">1 </span><span class="s0">and </span><span class="s1">self.owner.mapX &lt; (</span>
+					<span class="s1">MAP_RES[</span><span class="s2">0</span><span class="s1">] - (SCREEN_SIZE[</span><span class="s2">0</span><span class="s1">] // </span><span class="s2">2</span><span class="s1">)):  </span><span class="s4"># Checks they aren't at border</span>
+				<span class="s1">self.owner.mapX += self.owner.rect.center[</span><span class="s2">0</span><span class="s1">] - ((SCREEN_SIZE[</span><span class="s2">0</span><span class="s1">]//</span><span class="s2">2</span><span class="s1">)-</span><span class="s2">1</span><span class="s1">)</span><span class="s4">#Adjusts the map coOrds if they are centered</span>
+			<span class="s0">elif </span><span class="s1">self.owner.mapX &gt; MAP_RES[</span><span class="s2">0</span><span class="s1">] - SCREEN_SIZE[</span><span class="s2">0</span><span class="s1">]:</span><span class="s4">#Identifies that they are at the right edge</span>
+				<span class="s1">self.owner.mapX = (MAP_RES[</span><span class="s2">0</span><span class="s1">] - SCREEN_SIZE[</span><span class="s2">0</span><span class="s1">]) + self.owner.rect.center[</span><span class="s2">0</span><span class="s1">]</span><span class="s4">#Adjusts the map coOrds if they are at the right border</span>
+			<span class="s0">elif </span><span class="s1">self.owner.mapX &lt; SCREEN_SIZE[</span><span class="s2">0</span><span class="s1">]:</span><span class="s4">#Identifies that they are at the left edge</span>
+				<span class="s1">self.owner.mapX = self.owner.rect.center[</span><span class="s2">0</span><span class="s1">]</span><span class="s4">#Adjusts the map coOrds if they are at the right border</span>
+			<span class="s0">if </span><span class="s1">self.owner.mapX &gt; (SCREEN_SIZE[</span><span class="s2">0</span><span class="s1">] // </span><span class="s2">2</span><span class="s1">) - </span><span class="s2">1 </span><span class="s0">and </span><span class="s1">self.owner.mapX &lt; (</span>
+					<span class="s1">MAP_RES[</span><span class="s2">0</span><span class="s1">] - (SCREEN_SIZE[</span><span class="s2">0</span><span class="s1">] // </span><span class="s2">2</span><span class="s1">)):  </span><span class="s4"># Checks they arent at border</span>
+				<span class="s1">self.owner.rect.center = ((SCREEN_SIZE[</span><span class="s2">0</span><span class="s1">] // </span><span class="s2">2</span><span class="s1">)-</span><span class="s2">1</span><span class="s1">, self.owner.rect.center[</span><span class="s2">1</span><span class="s1">])</span><span class="s4">#Only changes the rect x coOrdinate if not at border</span>
+
+		<span class="s0">if </span><span class="s1">self.owner.rect.center[</span><span class="s2">1</span><span class="s1">] != (SCREEN_SIZE[</span><span class="s2">1</span><span class="s1">]//</span><span class="s2">2</span><span class="s1">)-</span><span class="s2">1</span><span class="s1">:</span><span class="s4">#If not center</span>
+			<span class="s0">if </span><span class="s1">self.owner.mapY &gt; (SCREEN_SIZE[</span><span class="s2">1</span><span class="s1">] // </span><span class="s2">2</span><span class="s1">) - </span><span class="s2">1 </span><span class="s0">and </span><span class="s1">self.owner.mapY &lt; (</span>
+					<span class="s1">MAP_RES[</span><span class="s2">1</span><span class="s1">] - (SCREEN_SIZE[</span><span class="s2">1</span><span class="s1">] // </span><span class="s2">2</span><span class="s1">)):  </span><span class="s4"># Checks they aren't at border</span>
+				<span class="s1">self.owner.mapY += self.owner.rect.center[</span><span class="s2">1</span><span class="s1">] - ((SCREEN_SIZE[</span><span class="s2">1</span><span class="s1">]//</span><span class="s2">2</span><span class="s1">)-</span><span class="s2">1</span><span class="s1">)</span><span class="s4">#Adjusts the map coOrds if they are centered</span>
+			<span class="s0">elif </span><span class="s1">self.owner.mapY &gt; MAP_RES[</span><span class="s2">1</span><span class="s1">] - SCREEN_SIZE[</span><span class="s2">1</span><span class="s1">]:</span><span class="s4">#Identifies that they are at the right edge</span>
+				<span class="s1">self.owner.mapY = (MAP_RES[</span><span class="s2">1</span><span class="s1">] - SCREEN_SIZE[</span><span class="s2">1</span><span class="s1">]) + self.owner.rect.center[</span><span class="s2">1</span><span class="s1">]</span><span class="s4">#Adjusts the map coOrds if they are at the right border</span>
+			<span class="s0">elif </span><span class="s1">self.owner.mapY &lt; SCREEN_SIZE[</span><span class="s2">1</span><span class="s1">]:</span><span class="s4">#Identifies that they are at the left edge</span>
+				<span class="s1">self.owner.mapY = self.owner.rect.center[</span><span class="s2">1</span><span class="s1">]</span><span class="s4">#Adjusts the map coOrds if they are at the right border</span>
+			<span class="s0">if </span><span class="s1">self.owner.mapY &gt; (SCREEN_SIZE[</span><span class="s2">1</span><span class="s1">] // </span><span class="s2">2</span><span class="s1">) - </span><span class="s2">1 </span><span class="s0">and </span><span class="s1">self.owner.mapY &lt; (</span>
+					<span class="s1">MAP_RES[</span><span class="s2">1</span><span class="s1">] - (SCREEN_SIZE[</span><span class="s2">1</span><span class="s1">] // </span><span class="s2">2</span><span class="s1">)):  </span><span class="s4"># Checks they arent at border</span>
+				<span class="s1">self.owner.rect.center = (self.owner.rect.center[</span><span class="s2">0</span><span class="s1">], (SCREEN_SIZE[</span><span class="s2">1</span><span class="s1">] // </span><span class="s2">2</span><span class="s1">)-</span><span class="s2">1</span><span class="s1">)</span><span class="s4">#Only changes the rect x coOrdinate if not at border</span>
+
+	<span class="s3">''' 
+    Name: worldAdjust  
+    Parameters: screen:rect, world:Object, characterList:spriteGroup, enemyList:spriteGroup, npcList:spriteGroup 
+    Returns: None 
+    Purpose: This readjusts any other players, enemies and NPCs in the world. 
+    '''</span>
+	<span class="s0">def </span><span class="s1">worldAdjust(self, screen, world, characterList, enemyList, npcList):</span>
+		<span class="s1">worldX = self.owner.rect.center[</span><span class="s2">0</span><span class="s1">]-self.owner.mapX</span>
+		<span class="s1">worldY = self.owner.rect.center[</span><span class="s2">1</span><span class="s1">]-self.owner.mapY</span>
+		<span class="s1">world.x, world.y = worldX, worldY</span>
+		<span class="s0">for </span><span class="s1">character </span><span class="s0">in </span><span class="s1">characterList:</span>
+			<span class="s0">if </span><span class="s1">character != self.owner:</span>
+				<span class="s1">character.rect.center = (worldX + character.mapX, worldY + character.mapY)</span>
+		<span class="s0">for </span><span class="s1">npc </span><span class="s0">in </span><span class="s1">npcList:</span>
+			<span class="s1">npc.rect.center = (worldX + npc.mapX, worldY + npc.mapY)</span>
+		<span class="s0">for </span><span class="s1">enemy </span><span class="s0">in </span><span class="s1">enemyList:</span>
+			<span class="s1">enemy.rect.center = (worldX + enemy.mapX, worldY + enemy.mapY)</span>
+
+	<span class="s3">''' 
+    Name: bulletAdjust 
+    Parameters: bulletList:spriteGroup, explosionList:spriteGroup 
+    Returns: None 
+    Purpose: This readjusts any projectiles in the world 
+    '''</span>
+	<span class="s0">def </span><span class="s1">bulletAdjust(self, bulletList, explosionList):</span>
+		<span class="s1">worldX = self.owner.rect.center[</span><span class="s2">0</span><span class="s1">]-self.owner.mapX</span>
+		<span class="s1">worldY = self.owner.rect.center[</span><span class="s2">1</span><span class="s1">]-self.owner.mapY</span>
+		<span class="s0">for </span><span class="s1">bullet </span><span class="s0">in </span><span class="s1">bulletList:</span>
+			<span class="s1">bullet.rect.center = (worldX + bullet.mapX, worldY + bullet.mapY)</span>
+		<span class="s0">for </span><span class="s1">explosion </span><span class="s0">in </span><span class="s1">explosionList:</span>
+			<span class="s1">explosion.rect.center = (worldX + explosion.mapX, worldY + explosion.mapY)</span>
+
+	<span class="s3">''' 
+    Name: obstacleAdjust 
+    Parameters: obstacleList:spriteGroup 
+    Returns: None 
+    Purpose: This readjusts any obstacles in the world 
+    '''</span>
+	<span class="s0">def </span><span class="s1">obstacleAdjust(self, obstacleList):</span>
+		<span class="s1">worldX = self.owner.rect.center[</span><span class="s2">0</span><span class="s1">]-self.owner.mapX</span>
+		<span class="s1">worldY = self.owner.rect.center[</span><span class="s2">1</span><span class="s1">]-self.owner.mapY</span>
+		<span class="s0">for </span><span class="s1">obstacle </span><span class="s0">in </span><span class="s1">obstacleList:</span>
+			<span class="s1">obstacle.rect.center = (worldX + obstacle.mapX, worldY + obstacle.mapY)</span>
+
+<span class="s1">npcList = pygame.sprite.Group()</span>
+<span class="s1">enemyList = pygame.sprite.Group()</span>
+<span class="s1">characters = pygame.sprite.Group()</span>
+<span class="s1">obstacleList = pygame.sprite.Group()</span>
+<span class="s1">bullets = pygame.sprite.Group()</span>
+<span class="s1">explosions = pygame.sprite.Group()</span>
+
+<span class="s3">''' 
+Name: Bullet 
+Purpose: This is a projectile which can deal damage and travel across the map. 
+'''</span>
+<span class="s0">class </span><span class="s1">Bullet(pygame.sprite.Sprite):</span>
+
+	<span class="s5">''' 
+    Name: __init__ 
+    Parameters: x:integer, y:integer, direction:tuple 
+    Returns: None 
+    Purpose: This constructs the bullet. It takes in the direction of the bullet as a vector so it knows how much to 
+    increment the x and y coordinates by. 
+    '''</span>
+	<span class="s0">def </span><span class="s1">__init__(self,x,y,direction, owner, damage):</span>
+		<span class="s1">super().__init__()</span>
+		<span class="s1">self.width = </span><span class="s2">5</span>
+		<span class="s1">self.height = </span><span class="s2">5</span>
+		<span class="s1">self.image = pygame.surface.Surface((self.width,self.height))</span>
+		<span class="s1">self.image.fill(WHITE)</span>
+		<span class="s1">pygame.draw.rect(self.image,(</span><span class="s2">0</span><span class="s1">,</span><span class="s2">0</span><span class="s1">,</span><span class="s2">0</span><span class="s1">),(</span><span class="s2">0</span><span class="s1">,</span><span class="s2">0</span><span class="s1">,self.width,self.height))</span>
+		<span class="s1">self.rect = self.image.get_rect()</span>
+		<span class="s1">self.rect.center = x, y</span>
+		<span class="s1">self.mapX = x</span>
+		<span class="s1">self.mapY = y</span>
+		<span class="s1">self.direction = direction</span>
+		<span class="s1">self.damage = damage</span>
+		<span class="s1">self.owner = owner</span>
+
+	<span class="s3">''' 
+    Name: update 
+    Parameters: enemyList:spriteGroup, obstacleList:spriteGroup, serverSide:boolean 
+    Returns: enemy.id:int, self.damage:int 
+    Purpose: This increments the x and y co-ordinates as well as checking if the bullet has collided. If the bullet has 
+    passed the edge of the map or collided it will kill itself and deal any necessary damage. 
+    '''</span>
+	<span class="s0">def </span><span class="s1">update(self, enemyList, obstacleList, serverSide=</span><span class="s0">False</span><span class="s1">):</span>
+		<span class="s1">self.mapX += self.direction[</span><span class="s2">0</span><span class="s1">]</span>
+		<span class="s1">self.mapY += self.direction[</span><span class="s2">1</span><span class="s1">]</span>
+		<span class="s0">for </span><span class="s1">enemy </span><span class="s0">in </span><span class="s1">enemyList:</span>
+			<span class="s0">if </span><span class="s1">checkCollision(self.mapX - </span><span class="s2">2</span><span class="s1">, self.mapX + </span><span class="s2">2</span><span class="s1">, self.mapY - </span><span class="s2">2</span><span class="s1">, self.mapY + </span><span class="s2">2</span><span class="s1">,</span>
+							  <span class="s1">enemy.mapX - (enemy.width//</span><span class="s2">2</span><span class="s1">), enemy.mapX + (enemy.width//</span><span class="s2">2</span><span class="s1">), enemy.mapY - (enemy.height//</span><span class="s2">2</span><span class="s1">), enemy.mapY + (enemy.height//</span><span class="s2">2</span><span class="s1">)):</span>
+				<span class="s0">if </span><span class="s1">self.owner:</span>
+					<span class="s1">bullets.remove(self)</span>
+					<span class="s1">self.kill()</span>
+					<span class="s0">return </span><span class="s1">[enemy.id], self.damage</span>
+
+				<span class="s1">bullets.remove(self)</span>
+				<span class="s1">self.kill()</span>
+
+		<span class="s0">for </span><span class="s1">obstacle </span><span class="s0">in </span><span class="s1">obstacleList:</span>
+			<span class="s0">if </span><span class="s1">checkCollision(self.mapX - </span><span class="s2">2</span><span class="s1">, self.mapX + </span><span class="s2">2</span><span class="s1">, self.mapY - </span><span class="s2">2</span><span class="s1">, self.mapY + </span><span class="s2">2</span><span class="s1">,</span>
+							  <span class="s1">obstacle.mapX - (obstacle.width//</span><span class="s2">2</span><span class="s1">), obstacle.mapX + (obstacle.width//</span><span class="s2">2</span><span class="s1">), obstacle.mapY - (obstacle.height//</span><span class="s2">2</span><span class="s1">), obstacle.mapY + (obstacle.height//</span><span class="s2">2</span><span class="s1">)):</span>
+				<span class="s1">bullets.remove(self)</span>
+				<span class="s1">self.kill()</span>
+
+		<span class="s0">if </span><span class="s1">self.mapY &lt; </span><span class="s2">0 </span><span class="s0">or </span><span class="s1">self.mapY&gt; MAP_RES[</span><span class="s2">1</span><span class="s1">] </span><span class="s0">or </span><span class="s1">self.mapX&lt; </span><span class="s2">0 </span><span class="s0">or </span><span class="s1">self.mapX &gt; MAP_RES[</span><span class="s2">0</span><span class="s1">]:</span><span class="s4">#If outside the map</span>
+			<span class="s1">bullets.remove(self)</span>
+			<span class="s1">self.kill()</span>
+
+<span class="s0">class </span><span class="s1">NeoBullet(Bullet):</span>
+
+	<span class="s0">def </span><span class="s1">__init__(self,x,y,direction, owner, damage):</span>
+		<span class="s1">super().__init__(x,y,direction, owner, damage)</span>
+		<span class="s1">self.victimList = []</span>
+		<span class="s1">self.image.fill((</span><span class="s2">200</span><span class="s1">, </span><span class="s2">200</span><span class="s1">, </span><span class="s2">0</span><span class="s1">))</span>
+
+	<span class="s0">def </span><span class="s1">update(self, enemyList, obstacleList, serverSide=</span><span class="s0">False</span><span class="s1">):</span>
+		<span class="s1">self.mapX += self.direction[</span><span class="s2">0</span><span class="s1">]</span>
+		<span class="s1">self.mapY += self.direction[</span><span class="s2">1</span><span class="s1">]</span>
+		<span class="s1">hitList = []</span>
+		<span class="s0">for </span><span class="s1">enemy </span><span class="s0">in </span><span class="s1">enemyList:</span>
+			<span class="s0">if </span><span class="s1">checkCollision(self.mapX - </span><span class="s2">2</span><span class="s1">, self.mapX + </span><span class="s2">2</span><span class="s1">, self.mapY - </span><span class="s2">2</span><span class="s1">, self.mapY + </span><span class="s2">2</span><span class="s1">,</span>
+							  <span class="s1">enemy.mapX - (enemy.width//</span><span class="s2">2</span><span class="s1">), enemy.mapX + (enemy.width//</span><span class="s2">2</span><span class="s1">), enemy.mapY - (enemy.height//</span><span class="s2">2</span><span class="s1">), enemy.mapY + (enemy.height//</span><span class="s2">2</span><span class="s1">)) </span><span class="s0">and </span><span class="s1">enemy </span><span class="s0">not in </span><span class="s1">self.victimList:</span>
+				<span class="s0">if </span><span class="s1">self.owner:</span>
+					<span class="s1">self.victimList.append(enemy)</span>
+					<span class="s1">hitList.append(enemy.id)</span>
+
+		<span class="s0">for </span><span class="s1">obstacle </span><span class="s0">in </span><span class="s1">obstacleList:</span>
+			<span class="s0">if </span><span class="s1">checkCollision(self.mapX - </span><span class="s2">2</span><span class="s1">, self.mapX + </span><span class="s2">2</span><span class="s1">, self.mapY - </span><span class="s2">2</span><span class="s1">, self.mapY + </span><span class="s2">2</span><span class="s1">,</span>
+							  <span class="s1">obstacle.mapX - (obstacle.width//</span><span class="s2">2</span><span class="s1">), obstacle.mapX + (obstacle.width//</span><span class="s2">2</span><span class="s1">), obstacle.mapY - (obstacle.height//</span><span class="s2">2</span><span class="s1">), obstacle.mapY + (obstacle.height//</span><span class="s2">2</span><span class="s1">)):</span>
+				<span class="s1">bullets.remove(self)</span>
+				<span class="s1">self.kill()</span>
+
+		<span class="s0">if </span><span class="s1">self.mapY &lt; </span><span class="s2">0 </span><span class="s0">or </span><span class="s1">self.mapY&gt; MAP_RES[</span><span class="s2">1</span><span class="s1">] </span><span class="s0">or </span><span class="s1">self.mapX&lt; </span><span class="s2">0 </span><span class="s0">or </span><span class="s1">self.mapX &gt; MAP_RES[</span><span class="s2">0</span><span class="s1">]:</span><span class="s4">#If outside the map</span>
+			<span class="s1">bullets.remove(self)</span>
+			<span class="s1">self.kill()</span>
+		<span class="s0">if </span><span class="s1">len(hitList) &gt; </span><span class="s2">0</span><span class="s1">:</span>
+			<span class="s0">return </span><span class="s1">hitList, self.damage</span>
+
+
+<span class="s3">''' 
+Name: Explosion 
+Purpose: An area that deals damage before disappearing. 
+'''</span>
+<span class="s0">class </span><span class="s1">Explosion(pygame.sprite.Sprite):</span>
+
+	<span class="s5">''' 
+    Name: __init__ 
+    Parameters: x:integer, y:integer, rectX:int, rectY:int 
+    Returns: None 
+    Purpose: Constructs an explosion. 
+    '''</span>
+	<span class="s0">def </span><span class="s1">__init__(self,x,y, rectX, rectY):</span>
+		<span class="s1">super().__init__()</span>
+		<span class="s1">self.mapX, self.mapY = x, y</span>
+		<span class="s1">self.width, self.height = TILE_SIZE*</span><span class="s2">7</span><span class="s1">, TILE_SIZE*</span><span class="s2">7</span>
+		<span class="s1">self.explosionTime = pygame.time.get_ticks()</span>
+
+		<span class="s1">self.image = pygame.surface.Surface((self.height, self.width))</span>
+		<span class="s4">#This makes the initial surface transparent</span>
+		<span class="s1">self.image = pygame.Surface((self.width, self.height), pygame.SRCALPHA)</span>
+
+		<span class="s4">#Adds two circles representing the different levels of damage</span>
+		<span class="s1">pygame.draw.circle(self.image, (</span><span class="s2">255</span><span class="s1">, </span><span class="s2">0</span><span class="s1">, </span><span class="s2">0</span><span class="s1">), (self.width//</span><span class="s2">2</span><span class="s1">, self.height//</span><span class="s2">2</span><span class="s1">), self.height // </span><span class="s2">2</span><span class="s1">)</span>
+		<span class="s1">pygame.draw.circle(self.image, (</span><span class="s2">255</span><span class="s1">, </span><span class="s2">255</span><span class="s1">, </span><span class="s2">0</span><span class="s1">), (self.width // </span><span class="s2">2</span><span class="s1">, self.height // </span><span class="s2">2</span><span class="s1">), (self.height//</span><span class="s2">2</span><span class="s1">) // </span><span class="s2">2</span><span class="s1">)</span>
+
+		<span class="s1">self.rect = self.image.get_rect()</span>
+		<span class="s1">self.rect.center = rectX, rectY</span>
+
+	<span class="s3">''' 
+    Name: update 
+    Parameters: players:dict, serverSide:boolean 
+    Returns: boolean, data:list 
+    Purpose: This checks collisions and kills the explosion if it has ended. 
+    '''</span>
+	<span class="s0">def </span><span class="s1">update(self,players=</span><span class="s0">False</span><span class="s1">, serverSide = </span><span class="s0">False</span><span class="s1">):</span>
+		<span class="s0">if </span><span class="s1">serverSide:</span>
+			<span class="s1">data = self.collisionCheck(players)</span>
+
+		<span class="s0">if </span><span class="s1">pygame.time.get_ticks() - self.explosionTime &gt; </span><span class="s2">250</span><span class="s1">:</span>
+			<span class="s0">if </span><span class="s1">serverSide:</span>
+				<span class="s0">return </span><span class="s1">(</span><span class="s3">&quot;kill&quot;</span><span class="s1">, data)</span>
+			<span class="s0">else</span><span class="s1">:</span>
+				<span class="s1">explosions.remove(self)</span>
+				<span class="s1">self.kill()</span>
+		<span class="s0">else</span><span class="s1">:</span>
+			<span class="s0">if not </span><span class="s1">serverSide:</span>
+				<span class="s1">self.image.set_alpha(self.image.get_alpha()-</span><span class="s2">19</span><span class="s1">)</span>
+			<span class="s0">else</span><span class="s1">:</span>
+				<span class="s0">return </span><span class="s1">(</span><span class="s0">False</span><span class="s1">, data)</span>
+
+	<span class="s3">''' 
+    Name: collisionCheck 
+    Parameters: players:dict 
+    Returns: victims:list 
+    Purpose: This checks if a player is colliding with the explosion's rect. It then assigns damage based of the distance  
+    the player is from the center. 
+    '''</span>
+	<span class="s0">def </span><span class="s1">collisionCheck(self, players):</span>
+		<span class="s1">victims = []</span>
+		<span class="s0">for </span><span class="s1">p </span><span class="s0">in </span><span class="s1">players:</span>
+			<span class="s1">player = players[p]</span>
+			<span class="s0">if </span><span class="s1">checkCollision(player.mapX-</span><span class="s2">20</span><span class="s1">, player.mapX+</span><span class="s2">20</span><span class="s1">, player.mapY-</span><span class="s2">20</span><span class="s1">, player.mapY+</span><span class="s2">20</span><span class="s1">,</span>
+							  <span class="s1">self.mapX-(self.width//</span><span class="s2">2</span><span class="s1">), self.mapX+(self.width//</span><span class="s2">2</span><span class="s1">), self.mapY-(self.height//</span><span class="s2">2</span><span class="s1">), self.mapY+(self.height//</span><span class="s2">2</span><span class="s1">)) </span><span class="s0">and </span><span class="s1">pygame.time.get_ticks() - player.invincible &gt;</span><span class="s2">800 </span><span class="s0">or not </span><span class="s1">player.invincible:</span>
+				<span class="s1">distance = math.sqrt(((player.mapX - self.mapX) ** </span><span class="s2">2</span><span class="s1">) + ((player.mapY - self.mapY) ** </span><span class="s2">2</span><span class="s1">))</span>
+				<span class="s4"># Close proximity damage</span>
+				<span class="s0">if </span><span class="s1">distance - </span><span class="s2">20 </span><span class="s1">&lt; (self.height // </span><span class="s2">2</span><span class="s1">) // </span><span class="s2">2</span><span class="s1">:</span>
+					<span class="s1">victims.append({</span><span class="s3">&quot;id&quot;</span><span class="s1">:player.connection, </span><span class="s3">&quot;damage&quot;</span><span class="s1">:</span><span class="s2">40</span><span class="s1">})</span>
+				<span class="s4"># Far proximity damage</span>
+				<span class="s0">elif </span><span class="s1">distance - </span><span class="s2">20 </span><span class="s1">&lt; self.height // </span><span class="s2">2</span><span class="s1">:</span>
+					<span class="s1">victims.append({</span><span class="s3">&quot;id&quot;</span><span class="s1">: player.connection, </span><span class="s3">&quot;damage&quot;</span><span class="s1">: </span><span class="s2">10</span><span class="s1">})</span>
+
+		<span class="s0">if </span><span class="s1">victims != []:</span>
+			<span class="s0">return </span><span class="s1">victims</span>
+		<span class="s0">else</span><span class="s1">:</span>
+			<span class="s0">return False</span>
+		<span class="s4"># collisions = pygame.sprite.spritecollide(self, players, False)</span>
+		<span class="s4"># if collisions != []:</span>
+		<span class="s4">#   for col in collisions:</span>
+		<span class="s4">#       distance = math.sqrt(((col.mapX - self.mapX)**2)+((col.mapY - self.mapY)**2))</span>
+		<span class="s4">#       #Close proximity damage</span>
+		<span class="s4">#       if distance - col.height &lt; (self.height//2)//2:</span>
+		<span class="s4">#           col.takeDamage(40)</span>
+		<span class="s4">#       #Far proximity damage</span>
+		<span class="s4">#       elif distance - col.height &lt; self.height//2:</span>
+		<span class="s4">#           col.takeDamage(10)</span>
+
+
+<span class="s3">''' 
+Name: Wall 
+Purpose: This is an obstacle which can't be passed through but can be destroyed. 
+'''</span>
+<span class="s0">class </span><span class="s1">Wall(pygame.sprite.Sprite):</span>
+
+	<span class="s5">''' 
+    Name: __init__ 
+    Parameters: x:integer, y:integer 
+    Returns: None 
+    Purpose: Constructor. 
+    '''</span>
+	<span class="s0">def </span><span class="s1">__init__(self,x,y):</span>
+		<span class="s1">super().__init__()</span>
+		<span class="s1">self.hp = </span><span class="s2">10</span>
+		<span class="s1">self.width = TILE_SIZE</span>
+		<span class="s1">self.height = TILE_SIZE</span>
+		<span class="s1">self.image = pygame.surface.Surface((TILE_SIZE,TILE_SIZE))</span>
+		<span class="s1">self.image.fill(WHITE)</span>
+		<span class="s1">pygame.draw.rect(self.image,(</span><span class="s2">0</span><span class="s1">,</span><span class="s2">0</span><span class="s1">,</span><span class="s2">0</span><span class="s1">),(</span><span class="s2">0</span><span class="s1">,</span><span class="s2">0</span><span class="s1">,self.width,self.height))</span>
+		<span class="s1">self.rect = self.image.get_rect()</span>
+		<span class="s1">self.mapX = x</span>
+		<span class="s1">self.mapY = y</span>
+		<span class="s1">self.rect.center = x, y</span>
+
+	<span class="s3">''' 
+    Name: takeDamage 
+    Parameters: None 
+    Returns: None 
+    Purpose: This makes the wall take damage. If it's health reaches zero then it is destroyed. 
+    '''</span>
+	<span class="s0">def </span><span class="s1">takeDamage(self):</span>
+		<span class="s1">self.hp -= </span><span class="s2">1</span>
+		<span class="s0">if </span><span class="s1">self.hp &lt; </span><span class="s2">0</span><span class="s1">:</span>
+			<span class="s1">obstacleList.remove(self)</span>
+			<span class="s1">self.kill()</span>
+		<span class="s0">if </span><span class="s1">self.hp &lt; </span><span class="s2">4</span><span class="s1">:</span>
+			<span class="s1">pygame.draw.rect(self.image, RED, (</span><span class="s2">0</span><span class="s1">, </span><span class="s2">0</span><span class="s1">, self.width, self.height))</span>
+		<span class="s0">elif </span><span class="s1">self.hp &lt; </span><span class="s2">7</span><span class="s1">:</span>
+			<span class="s1">pygame.draw.rect(self.image, GREEN, (</span><span class="s2">0</span><span class="s1">, </span><span class="s2">0</span><span class="s1">, self.width, self.height))</span>
+
+	<span class="s3">''' 
+    Name: __repr__ 
+    Parameters: None 
+    Returns: string 
+    Purpose: Used for testing purposes. 
+    '''</span>
+	<span class="s0">def </span><span class="s1">__repr__(self):</span>
+		<span class="s0">return </span><span class="s3">f&quot;</span><span class="s6">{</span><span class="s1">self.mapX</span><span class="s6">}</span><span class="s3">, </span><span class="s6">{</span><span class="s1">self.mapY</span><span class="s6">}</span><span class="s3">, wall&quot;</span>
+
+<span class="s3">''' 
+Name: Character 
+Purpose: This is what the player controls. This class is also used for any other players that are playing online. 
+'''</span>
+<span class="s0">class </span><span class="s1">Character(pygame.sprite.Sprite):</span>
+	<span class="s1">idcount = </span><span class="s2">0</span>
+
+	<span class="s3">''' 
+    Name: __init__ 
+    Parameters: x:integer, y:integer, conn:connection, serverSide:boolean, id:int 
+    Returns: None 
+    Purpose: Constructor for player characters. 
+    '''</span>
+	<span class="s0">def </span><span class="s1">__init__(self,x,y,conn=</span><span class="s0">None</span><span class="s1">, serverSide = </span><span class="s0">False</span><span class="s1">, id = </span><span class="s0">False</span><span class="s1">):</span>
+		<span class="s1">super().__init__()</span>
+		<span class="s1">self.width = TILE_SIZE</span>
+		<span class="s1">self.height = TILE_SIZE</span>
+		<span class="s1">self.deadImage = pygame.image.load(</span><span class="s3">&quot;Assets/ded.png&quot;</span><span class="s1">)</span>
+		<span class="s1">self.deadImage = pygame.transform.scale(self.deadImage, (self.width, self.height))</span>
+		<span class="s1">self.aliveImage = pygame.image.load(</span><span class="s3">&quot;Assets/rocket.png&quot;</span><span class="s1">)</span>
+		<span class="s1">self.aliveImage = pygame.transform.scale(self.aliveImage,(self.width,self.height))</span>
+		<span class="s1">self.image = self.aliveImage</span>
+		<span class="s1">self.rect = self.image.get_rect()</span>
+		<span class="s1">self.rect.center = ((SCREEN_SIZE[</span><span class="s2">0</span><span class="s1">]//</span><span class="s2">2</span><span class="s1">)-</span><span class="s2">1</span><span class="s1">, (SCREEN_SIZE[</span><span class="s2">1</span><span class="s1">]//</span><span class="s2">2</span><span class="s1">)-</span><span class="s2">1</span><span class="s1">)</span>
+		<span class="s1">self.mapX = x</span>
+		<span class="s1">self.mapY = y</span>
+		<span class="s1">self.direction = </span><span class="s3">&quot;UP&quot;</span>
+		<span class="s1">self.connection = conn</span>
+		<span class="s0">if not </span><span class="s1">serverSide:</span>
+			<span class="s1">self.camera = Camera(self)</span>
+			<span class="s1">self.hud = Hud(self)</span>
+		<span class="s0">if </span><span class="s1">serverSide:</span>
+			<span class="s1">self.id = Character.idcount</span>
+			<span class="s1">Character.idcount += </span><span class="s2">1</span>
+		<span class="s0">else</span><span class="s1">:</span>
+			<span class="s1">self.id = id</span>
+		<span class="s1">self.health = </span><span class="s2">100</span>
+		<span class="s1">self.invincible = </span><span class="s0">False</span>
+		<span class="s1">self.talking = </span><span class="s0">False</span>
+		<span class="s1">self.talkCooldown = </span><span class="s0">False</span>
+		<span class="s1">self.dead = </span><span class="s0">False</span>
+		<span class="s1">self.confirm = </span><span class="s0">False</span>
+		<span class="s1">self.revive = </span><span class="s0">False</span>
+		<span class="s1">self.paused = </span><span class="s0">False</span>
+		<span class="s1">self.inventory = []</span>
+		<span class="s1">self.activeWeapon = </span><span class="s0">False</span>
+		<span class="s1">self.movementKeys = {</span><span class="s3">&quot;up&quot;</span><span class="s1">:pygame.K_w, </span><span class="s3">&quot;down&quot;</span><span class="s1">:pygame.K_s, </span><span class="s3">&quot;left&quot;</span><span class="s1">:pygame.K_a, </span><span class="s3">&quot;right&quot;</span><span class="s1">:pygame.K_d}</span>
+
+	<span class="s3">''' 
+    Name: fire 
+    Parameters: data:list 
+    Returns: None 
+    Purpose: This creates a bullet which travels in the direction of the cursor. It also informs the server so a shot is 
+    fired on other player's screens. 
+    '''</span>
+	<span class="s0">def </span><span class="s1">fire(self, data=</span><span class="s0">False</span><span class="s1">):</span>
+		<span class="s0">if not </span><span class="s1">data:</span>
+			<span class="s1">angle = self.activeWeapon.calcGunAngle()</span>
+			<span class="s1">start, bulletList = self.activeWeapon.fire()</span>
+			<span class="s1">self.tell_server(</span><span class="s3">&quot;projectile&quot;</span><span class="s1">, (start, bulletList, angle))</span>
+			<span class="s1">owner = </span><span class="s0">True</span>
+		<span class="s0">else</span><span class="s1">:</span>
+			<span class="s1">start = data[</span><span class="s2">0</span><span class="s1">]</span>
+			<span class="s1">bulletList = data[</span><span class="s2">1</span><span class="s1">]</span>
+			<span class="s1">owner = </span><span class="s0">False</span>
+			<span class="s1">self.activeWeapon.angle = data[</span><span class="s2">2</span><span class="s1">]</span>
+		<span class="s0">for </span><span class="s1">bullet </span><span class="s0">in </span><span class="s1">bulletList:</span>
+			<span class="s0">if </span><span class="s1">self.activeWeapon.name != </span><span class="s3">&quot;NeoGun&quot; </span><span class="s0">and </span><span class="s1">self.activeWeapon.name != </span><span class="s3">&quot;NeoShotgun&quot;</span><span class="s1">:</span>
+				<span class="s1">bullets.add(Bullet(start[</span><span class="s2">0</span><span class="s1">], start[</span><span class="s2">1</span><span class="s1">], bullet, owner, self.activeWeapon.damage))</span>
+			<span class="s0">else</span><span class="s1">:</span>
+				<span class="s1">bullets.add(NeoBullet(start[</span><span class="s2">0</span><span class="s1">], start[</span><span class="s2">1</span><span class="s1">], bullet, owner, self.activeWeapon.damage))</span>
+
+	<span class="s3">''' 
+    Name: tell_server 
+    Parameters: action:string, data:list 
+    Returns: None 
+    Purpose: This function sends a message to the server so that the same action can be completed on other player's  
+    games. 
+    '''</span>
+	<span class="s0">def </span><span class="s1">tell_server(self, action, data =  </span><span class="s0">None</span><span class="s1">):</span>
+		<span class="s0">if </span><span class="s1">self.connection != </span><span class="s0">None</span><span class="s1">:</span>
+			<span class="s0">if </span><span class="s1">action == </span><span class="s3">&quot;move&quot;</span><span class="s1">:</span>
+				<span class="s1">packet = {</span><span class="s3">&quot;command&quot;</span><span class="s1">:</span><span class="s3">&quot;MOVE&quot;</span><span class="s1">,</span><span class="s3">&quot;data&quot;</span><span class="s1">:{</span><span class="s3">&quot;xPos&quot;</span><span class="s1">:self.mapX, </span><span class="s3">&quot;yPos&quot;</span><span class="s1">:self.mapY}}</span>
+			<span class="s0">elif </span><span class="s1">action == </span><span class="s3">&quot;projectile&quot;</span><span class="s1">:</span>
+				<span class="s1">packet = {</span><span class="s3">&quot;command&quot;</span><span class="s1">: </span><span class="s3">&quot;PROJECTILE&quot;</span><span class="s1">, </span><span class="s3">&quot;data&quot;</span><span class="s1">: {</span><span class="s3">&quot;start&quot;</span><span class="s1">:data[</span><span class="s2">0</span><span class="s1">], </span><span class="s3">&quot;bulletList&quot;</span><span class="s1">:data[</span><span class="s2">1</span><span class="s1">], </span><span class="s3">&quot;angle&quot;</span><span class="s1">:data[</span><span class="s2">2</span><span class="s1">]}}</span>
+			<span class="s0">elif </span><span class="s1">action == </span><span class="s3">&quot;weapon&quot;</span><span class="s1">:</span>
+				<span class="s1">packet = {</span><span class="s3">&quot;command&quot;</span><span class="s1">: </span><span class="s3">&quot;WEAPONSWAP&quot;</span><span class="s1">, </span><span class="s3">&quot;data&quot;</span><span class="s1">: {</span><span class="s3">&quot;weapon&quot;</span><span class="s1">: data}}</span>
+			<span class="s0">elif </span><span class="s1">action == </span><span class="s3">&quot;hit&quot;</span><span class="s1">:</span>
+				<span class="s1">packet = {</span><span class="s3">&quot;command&quot;</span><span class="s1">: </span><span class="s3">&quot;ENEMYHIT&quot;</span><span class="s1">, </span><span class="s3">&quot;data&quot;</span><span class="s1">: {</span><span class="s3">&quot;list&quot;</span><span class="s1">: data[</span><span class="s2">0</span><span class="s1">], </span><span class="s3">&quot;damage&quot;</span><span class="s1">: data[</span><span class="s2">1</span><span class="s1">]}}</span>
+			<span class="s0">elif </span><span class="s1">action == </span><span class="s3">&quot;kill&quot;</span><span class="s1">:</span>
+				<span class="s1">packet = {</span><span class="s3">&quot;command&quot;</span><span class="s1">: </span><span class="s3">&quot;CONFIRMATION&quot;</span><span class="s1">, </span><span class="s3">&quot;data&quot;</span><span class="s1">: {</span><span class="s3">&quot;id&quot;</span><span class="s1">: data}}</span>
+			<span class="s0">elif </span><span class="s1">action == </span><span class="s3">&quot;death&quot;</span><span class="s1">:</span>
+				<span class="s1">packet = {</span><span class="s3">&quot;command&quot;</span><span class="s1">: </span><span class="s3">&quot;DEATHCONFIRMATION&quot;</span><span class="s1">}</span>
+			<span class="s0">elif </span><span class="s1">action == </span><span class="s3">&quot;revived&quot;</span><span class="s1">:</span>
+				<span class="s1">packet = {</span><span class="s3">&quot;command&quot;</span><span class="s1">: </span><span class="s3">&quot;REVCONFIRMATION&quot;</span><span class="s1">}</span>
+			<span class="s0">elif </span><span class="s1">action == </span><span class="s3">&quot;talkstop&quot;</span><span class="s1">:</span>
+				<span class="s1">packet = {</span><span class="s3">&quot;command&quot;</span><span class="s1">: </span><span class="s3">&quot;TALKSTOP&quot;</span><span class="s1">}</span>
+			<span class="s0">elif </span><span class="s1">action == </span><span class="s3">&quot;pause&quot;</span><span class="s1">:</span>
+				<span class="s1">packet = {</span><span class="s3">&quot;command&quot;</span><span class="s1">: </span><span class="s3">&quot;PAUSE&quot;</span><span class="s1">}</span>
+			<span class="s0">elif </span><span class="s1">action == </span><span class="s3">&quot;unpause&quot;</span><span class="s1">:</span>
+				<span class="s1">packet = {</span><span class="s3">&quot;command&quot;</span><span class="s1">: </span><span class="s3">&quot;UNPAUSE&quot;</span><span class="s1">}</span>
+			<span class="s0">elif </span><span class="s1">action == </span><span class="s3">&quot;revive&quot;</span><span class="s1">:</span>
+				<span class="s1">packet = {</span><span class="s3">&quot;command&quot;</span><span class="s1">: </span><span class="s3">&quot;REVIVAL&quot;</span><span class="s1">, </span><span class="s3">&quot;data&quot;</span><span class="s1">: {</span><span class="s3">&quot;idList&quot;</span><span class="s1">: data}}</span>
+			<span class="s1">self.connection.send((json.dumps(packet) + </span><span class="s3">&quot;#&quot;</span><span class="s1">).encode())</span>
+
+
+	<span class="s3">''' 
+    Name: move 
+    Parameters: obstacles:spriteGroup 
+    Returns: None 
+    Purpose: This checks if a player can move or whether they will collide with a wall. If the player is moving in  
+    multiple directions it will lower the velocity.  
+    '''</span>
+	<span class="s0">def </span><span class="s1">move(self, obstacles):</span>
+		<span class="s0">if not </span><span class="s1">self.talking </span><span class="s0">and not </span><span class="s1">self.dead </span><span class="s0">and not </span><span class="s1">self.paused:</span>
+			<span class="s1">keys = pygame.key.get_pressed()</span>
+			<span class="s1">velocity = </span><span class="s2">6</span>
+			<span class="s0">if </span><span class="s1">keys[self.movementKeys[</span><span class="s3">&quot;right&quot;</span><span class="s1">]] == </span><span class="s0">True</span><span class="s1">:</span><span class="s4">#Account for diagonal speed</span>
+				<span class="s0">if </span><span class="s1">keys[self.movementKeys[</span><span class="s3">&quot;up&quot;</span><span class="s1">]] == </span><span class="s0">True or </span><span class="s1">keys[self.movementKeys[</span><span class="s3">&quot;down&quot;</span><span class="s1">]] == </span><span class="s0">True</span><span class="s1">:</span>
+					<span class="s1">velocity = math.floor(velocity *</span><span class="s2">0.7</span><span class="s1">)</span>
+
+
+			<span class="s0">elif </span><span class="s1">keys[self.movementKeys[</span><span class="s3">&quot;left&quot;</span><span class="s1">]] == </span><span class="s0">True</span><span class="s1">:</span>
+				<span class="s0">if </span><span class="s1">keys[self.movementKeys[</span><span class="s3">&quot;up&quot;</span><span class="s1">]] == </span><span class="s0">True or </span><span class="s1">keys[self.movementKeys[</span><span class="s3">&quot;down&quot;</span><span class="s1">]] == </span><span class="s0">True</span><span class="s1">:</span>
+					<span class="s1">velocity =  math.floor(velocity *</span><span class="s2">0.7</span><span class="s1">)</span>
+
+
+			<span class="s0">if </span><span class="s1">keys[self.movementKeys[</span><span class="s3">&quot;up&quot;</span><span class="s1">]] == </span><span class="s0">True</span><span class="s1">:</span>
+				<span class="s1">self.rect.y -= velocity</span>
+				<span class="s4">#self.mapY -= velocity</span>
+				<span class="s1">self.direction = </span><span class="s3">&quot;UP&quot;</span>
+				<span class="s0">if </span><span class="s1">pygame.sprite.spritecollide(self, obstacles, </span><span class="s0">False</span><span class="s1">):</span>
+					<span class="s1">self.rect.y += velocity</span>
+					<span class="s4">#self.mapY += velocity</span>
+				<span class="s0">if </span><span class="s1">self.rect.y &lt;</span><span class="s2">0</span><span class="s1">:</span>
+					<span class="s1">self.rect.y = </span><span class="s2">0</span>
+					<span class="s4">#self.mapY = 0</span>
+				<span class="s4"># if frame</span>
+				<span class="s1">self.tell_server(</span><span class="s3">&quot;move&quot;</span><span class="s1">)</span>
+
+			<span class="s0">if </span><span class="s1">keys[self.movementKeys[</span><span class="s3">&quot;down&quot;</span><span class="s1">]]:</span>
+				<span class="s1">self.rect.y += velocity</span>
+				<span class="s4">#self.mapY += velocity</span>
+				<span class="s1">self.direction = </span><span class="s3">&quot;DOWN&quot;</span>
+				<span class="s0">if </span><span class="s1">pygame.sprite.spritecollide(self, obstacles,</span><span class="s0">False</span><span class="s1">):</span>
+					<span class="s1">self.rect.y -= velocity</span>
+					<span class="s4">#self.mapY -= velocity</span>
+				<span class="s0">if </span><span class="s1">self.rect.y &gt; SCREEN_SIZE[</span><span class="s2">1</span><span class="s1">]-self.height:</span>
+					<span class="s1">self.rect.y = SCREEN_SIZE[</span><span class="s2">1</span><span class="s1">]-self.height</span>
+					<span class="s4">#self.mapY = SCREEN_SIZE[1]-self.height</span>
+				<span class="s1">self.tell_server(</span><span class="s3">&quot;move&quot;</span><span class="s1">)</span>
+
+			<span class="s0">if </span><span class="s1">keys[self.movementKeys[</span><span class="s3">&quot;left&quot;</span><span class="s1">]]:</span>
+				<span class="s1">self.rect.x -= velocity</span>
+				<span class="s4"># self.mapX -= math.floor(velocity)</span>
+				<span class="s1">self.direction = </span><span class="s3">&quot;LEFT&quot;</span>
+				<span class="s0">if </span><span class="s1">pygame.sprite.spritecollide(self, obstacles,</span><span class="s0">False</span><span class="s1">):</span>
+					<span class="s1">self.rect.x += velocity</span>
+					<span class="s4"># self.mapX += velocity</span>
+				<span class="s0">if </span><span class="s1">self.rect.x &lt; </span><span class="s2">0</span><span class="s1">:</span>
+					<span class="s1">self.rect.x = </span><span class="s2">0</span>
+					<span class="s4"># self.mapX = 0</span>
+				<span class="s1">self.tell_server(</span><span class="s3">&quot;move&quot;</span><span class="s1">)</span>
+
+			<span class="s0">if </span><span class="s1">keys[self.movementKeys[</span><span class="s3">&quot;right&quot;</span><span class="s1">]]:</span>
+				<span class="s1">self.rect.x += velocity</span>
+				<span class="s4"># self.mapX += velocity</span>
+				<span class="s1">self.direction = </span><span class="s3">&quot;RIGHT&quot;</span>
+				<span class="s0">if </span><span class="s1">pygame.sprite.spritecollide(self, obstacles,</span><span class="s0">False</span><span class="s1">):</span>
+					<span class="s1">self.rect.x -= velocity</span>
+					<span class="s4"># self.mapX -= velocity</span>
+				<span class="s0">if </span><span class="s1">self.rect.x &gt; SCREEN_SIZE[</span><span class="s2">0</span><span class="s1">]-self.width:</span>
+					<span class="s1">self.rect.x = SCREEN_SIZE[</span><span class="s2">0</span><span class="s1">]-self.width</span>
+					<span class="s4"># self.mapX = SCREEN_SIZE[0]-self.width</span>
+				<span class="s1">self.tell_server(</span><span class="s3">&quot;move&quot;</span><span class="s1">)</span>
+
+	<span class="s3">''' 
+    Name: takeDamage 
+    Parameters: damage:int, serverSide:boolean 
+    Returns: None 
+    Purpose: If enough time has passed since last time the player had been damaged by an enemy, they will take damage. 
+    '''</span>
+	<span class="s0">def </span><span class="s1">takeDamage(self, damage, serverSide=</span><span class="s0">False</span><span class="s1">):</span>
+		<span class="s0">if </span><span class="s1">serverSide:</span>
+			<span class="s0">if </span><span class="s1">pygame.time.get_ticks() - self.invincible &gt;</span><span class="s2">800 </span><span class="s0">or not </span><span class="s1">self.invincible:</span>
+				<span class="s1">self.health -= damage</span>
+				<span class="s0">if </span><span class="s1">self.health &lt; </span><span class="s2">0</span><span class="s1">:</span>
+					<span class="s1">self.health = </span><span class="s2">0</span>
+				<span class="s1">self.invincible = pygame.time.get_ticks()</span>
+		<span class="s0">else</span><span class="s1">:</span>
+			<span class="s1">self.health -= damage</span>
+			<span class="s0">if </span><span class="s1">self.health &lt; </span><span class="s2">0</span><span class="s1">:</span>
+				<span class="s1">self.health = </span><span class="s2">0</span>
+
+	<span class="s3">''' 
+    Name: checkTalk 
+    Parameters: npcs:spriteGroup 
+    Returns: npc:object 
+    Purpose: This will check if a player has collided with an NPC and wether their talk cooldown has ended. 
+    '''</span>
+	<span class="s0">def </span><span class="s1">checkTalk(self, npcs):</span>
+		<span class="s0">if </span><span class="s1">self.talkCooldown:</span>
+			<span class="s0">if </span><span class="s1">pygame.time.get_ticks() - self.talkCooldown &gt; </span><span class="s2">1000</span><span class="s1">:</span>
+				<span class="s1">self.talkCooldown = </span><span class="s0">False</span>
+		<span class="s0">if not </span><span class="s1">self.talking </span><span class="s0">and not </span><span class="s1">self.dead </span><span class="s0">and not </span><span class="s1">self.talkCooldown </span><span class="s0">and not </span><span class="s1">self.paused:</span>
+			<span class="s1">count = </span><span class="s2">0</span>
+			<span class="s0">while </span><span class="s1">count != len(pygame.sprite.Group.sprites(npcs)):</span>
+				<span class="s1">npc = pygame.sprite.Group.sprites(npcs)[count]</span>
+				<span class="s0">if </span><span class="s1">checkCollision(self.mapX -(self.width//</span><span class="s2">2</span><span class="s1">), self.mapX +(self.width//</span><span class="s2">2</span><span class="s1">), self.mapY -(self.height//</span><span class="s2">2</span><span class="s1">), self.mapY +(self.height//</span><span class="s2">2</span><span class="s1">),</span>
+								  <span class="s1">npc.mapX -(npc.width//</span><span class="s2">2</span><span class="s1">), npc.mapX +(npc.width//</span><span class="s2">2</span><span class="s1">), npc.mapY -(npc.height//</span><span class="s2">2</span><span class="s1">), npc.mapY +(npc.height//</span><span class="s2">2</span><span class="s1">)):</span>
+					<span class="s1">self.talking = npc</span>
+					<span class="s0">return </span><span class="s1">npc</span>
+				<span class="s1">count += </span><span class="s2">1</span>
+
+		<span class="s0">return False</span>
+
+	<span class="s3">''' 
+    Name: endTalk 
+    Parameters: serverSide:boolean 
+    Returns: None 
+    Purpose: Tells the server and removes the player from the NPC's customers. 
+    '''</span>
+	<span class="s0">def </span><span class="s1">endTalk(self, serverSide=</span><span class="s0">False</span><span class="s1">):</span>
+		<span class="s0">if </span><span class="s1">serverSide:</span>
+			<span class="s1">self.talking.removeCustomer(self.id)</span>
+			<span class="s1">self.talking = </span><span class="s0">False</span>
+		<span class="s0">else</span><span class="s1">:</span>
+			<span class="s1">self.tell_server(</span><span class="s3">&quot;talkstop&quot;</span><span class="s1">)</span>
+			<span class="s1">self.hud.startAnimation(</span><span class="s3">&quot;close&quot;</span><span class="s1">)</span>
+		<span class="s1">self.talkCooldown = pygame.time.get_ticks()</span>
+
+	<span class="s3">''' 
+    Name: die 
+    Parameters: serverSide:boolean 
+    Returns: None 
+    Purpose: Changes the player's state and sprites. 
+    '''</span>
+	<span class="s0">def </span><span class="s1">die(self, serverSide=</span><span class="s0">False</span><span class="s1">):</span>
+		<span class="s1">self.dead = pygame.time.get_ticks()</span>
+		<span class="s0">if not </span><span class="s1">serverSide:</span>
+			<span class="s1">self.health = </span><span class="s2">0</span>
+			<span class="s1">self.deadSprite()</span>
+		<span class="s0">if </span><span class="s1">self.talking:</span>
+			<span class="s1">self.endTalk(serverSide)</span>
+
+	<span class="s3">''' 
+    Name: deadSprite 
+    Parameters: None 
+    Returns: None 
+    Purpose: Changes the players sprite to a dead one. 
+    '''</span>
+	<span class="s0">def </span><span class="s1">deadSprite(self):</span>
+		<span class="s1">self.image = self.deadImage</span>
+
+	<span class="s3">''' 
+    Name: checkRevive 
+    Parameters: players:list 
+    Returns: None 
+    Purpose: This will check if the player is holding the revive key and will revive any nearby players. 
+    '''</span>
+	<span class="s0">def </span><span class="s1">checkRevive(self, players):</span>
+		<span class="s1">checked = </span><span class="s0">False</span>
+		<span class="s1">reviveList = []</span>
+		<span class="s0">for </span><span class="s1">player </span><span class="s0">in </span><span class="s1">players:</span>
+			<span class="s0">if </span><span class="s1">player != self </span><span class="s0">and </span><span class="s1">player.dead </span><span class="s0">and not </span><span class="s1">self.talking </span><span class="s0">and not </span><span class="s1">self.dead </span><span class="s0">and not </span><span class="s1">self.paused:</span>
+				<span class="s1">distance = math.sqrt(((player.mapX - self.mapX) ** </span><span class="s2">2</span><span class="s1">) + ((player.mapY - self.mapY) ** </span><span class="s2">2</span><span class="s1">))</span>
+				<span class="s0">if </span><span class="s1">distance &lt; </span><span class="s2">70</span><span class="s1">:</span>
+					<span class="s1">self.revive = </span><span class="s0">True</span>
+					<span class="s1">checked = </span><span class="s0">True</span>
+					<span class="s1">reviveList.append(player.id)</span>
+
+		<span class="s0">if not </span><span class="s1">checked:</span>
+			<span class="s1">self.revive = </span><span class="s0">False</span>
+		<span class="s0">else</span><span class="s1">:</span>
+			<span class="s1">keys = pygame.key.get_pressed()</span>
+			<span class="s0">if </span><span class="s1">keys[pygame.K_r]:</span>
+				<span class="s1">self.tell_server(</span><span class="s3">&quot;revive&quot;</span><span class="s1">, reviveList)</span>
+				<span class="s0">for </span><span class="s1">player </span><span class="s0">in </span><span class="s1">players:</span>
+					<span class="s0">if </span><span class="s1">player.id </span><span class="s0">in </span><span class="s1">reviveList:</span>
+						<span class="s1">player.reviveSelf()</span>
+
+	<span class="s3">''' 
+    Name: reviveSelf 
+    Parameters: None 
+    Returns: None 
+    Purpose: Changes the players sprites, states and sets the players health to 50. 
+    '''</span>
+	<span class="s0">def </span><span class="s1">reviveSelf(self):</span>
+		<span class="s1">self.health = </span><span class="s2">50</span>
+		<span class="s1">self.dead = </span><span class="s0">False</span>
+		<span class="s1">self.image = self.aliveImage</span>
+
+	<span class="s3">''' 
+    Name: checkPause 
+    Parameters: None 
+    Returns: None 
+    Purpose: Will check if the player is holding down the pause button and if so will activate the pause menu. 
+    '''</span>
+	<span class="s0">def </span><span class="s1">checkPause(self):</span>
+		<span class="s1">keys = pygame.key.get_pressed()</span>
+		<span class="s0">if </span><span class="s1">keys[pygame.K_ESCAPE]:</span>
+			<span class="s0">if not </span><span class="s1">self.talking </span><span class="s0">and not </span><span class="s1">self.paused:</span>
+				<span class="s1">self.hud.startAnimation(</span><span class="s3">&quot;menu&quot;</span><span class="s1">)</span>
+				<span class="s1">self.paused = </span><span class="s0">True</span>
+				<span class="s1">self.tell_server(</span><span class="s3">&quot;pause&quot;</span><span class="s1">)</span>
+
+<span class="s3">''' 
+Name: Gun 
+Purpose: Parent class for all gun related weapons. 
+'''</span>
+<span class="s0">class </span><span class="s1">Gun(pygame.sprite.Sprite):</span>
+
+	<span class="s5">''' 
+    Name: __init__ 
+    Parameters: image:str, damage:int, owner:object, cooldown:int, name:str, resize:tuple 
+    Returns: None 
+    Purpose: Constructor. 
+    '''</span>
+	<span class="s0">def </span><span class="s1">__init__(self, image, damage, owner, offset, cooldown, name, resize = </span><span class="s0">False</span><span class="s1">):</span>
+		<span class="s1">super().__init__()</span>
+		<span class="s1">self.origImage = pygame.image.load(image)</span>
+		<span class="s0">if </span><span class="s1">resize:</span>
+			<span class="s1">self.origImage = pygame.transform.scale(self.origImage, resize)</span>
+		<span class="s1">self.image = self.origImage</span>
+		<span class="s1">self.rect = self.image.get_rect()</span>
+		<span class="s1">self.rect.center = (-</span><span class="s2">1000</span><span class="s1">, -</span><span class="s2">1000</span><span class="s1">)</span>
+		<span class="s1">self.damage = damage</span>
+		<span class="s1">self.owner = owner</span>
+		<span class="s1">self.lastShot = pygame.time.get_ticks()</span>
+		<span class="s1">self.cooldown = cooldown</span>
+		<span class="s1">self.barrel = (</span><span class="s2">0</span><span class="s1">, </span><span class="s2">0</span><span class="s1">)</span><span class="s4">#This is where the bullets come from</span>
+		<span class="s1">self.barrelMap = (</span><span class="s2">0</span><span class="s1">, </span><span class="s2">0</span><span class="s1">)</span><span class="s4">#This is the coordinate for where the bullet spawns</span>
+		<span class="s1">self.offset = offset</span><span class="s4">#(Used to reposition gun for facing, used for calculating the distance the center should be away from the player, used for determining the barrels position)</span>
+		<span class="s1">self.trajectory = (</span><span class="s2">0</span><span class="s1">, </span><span class="s2">0</span><span class="s1">)</span>
+		<span class="s1">self.name = name</span>
+		<span class="s1">self.angle = </span><span class="s2">0</span>
+
+	<span class="s3">''' 
+    Name: calcGunAngle 
+    Parameters: calc:boolean 
+    Returns: None 
+    Purpose: Calculates the position rotation and location of the barrel of the gun based of the player's mouse position. 
+    '''</span>
+	<span class="s0">def </span><span class="s1">calcGunAngle(self, calc = </span><span class="s0">False</span><span class="s1">):</span>
+		<span class="s1">lastPos = (self.rect.center)</span>
+		<span class="s0">try</span><span class="s1">:</span>
+			<span class="s0">if not </span><span class="s1">calc:</span>
+				<span class="s1">mouse = pygame.mouse.get_pos()</span>
+				<span class="s1">adjacent = mouse[</span><span class="s2">0</span><span class="s1">] - self.owner.rect.centerx</span>
+				<span class="s1">opposite = mouse[</span><span class="s2">1</span><span class="s1">] - self.owner.rect.centery</span>
+
+				<span class="s1">self.angle = math.degrees(math.atan2(opposite, adjacent))</span>
+
+			<span class="s4">#Offsets the angle so the gun faces the cursor</span>
+			<span class="s1">self.angle += self.offset[</span><span class="s2">0</span><span class="s1">]</span>
+			<span class="s1">self.angle = self.angle % </span><span class="s2">360</span>
+
+			<span class="s1">self.image = pygame.transform.rotate(self.origImage, -self.angle)</span>
+			<span class="s1">self.rect = self.image.get_rect()</span>
+
+			<span class="s4">#Positions the image</span>
+			<span class="s1">x = self.owner.rect.centerx + self.offset[</span><span class="s2">2</span><span class="s1">] * math.cos(math.radians(self.angle))</span>
+			<span class="s1">y = self.owner.rect.centery + self.offset[</span><span class="s2">2</span><span class="s1">] * math.sin(math.radians(self.angle))</span>
+			<span class="s1">self.rect.center = (x, y)</span>
+
+			<span class="s4">#Resumes original angle</span>
+			<span class="s1">self.angle -= self.offset[</span><span class="s2">0</span><span class="s1">]</span>
+			<span class="s1">self.angle = self.angle % </span><span class="s2">360</span>
+
+			<span class="s1">x = self.owner.rect.centerx + self.offset[</span><span class="s2">1</span><span class="s1">] * math.cos(math.radians(self.angle+</span><span class="s2">2</span><span class="s1">))</span>
+			<span class="s1">y = self.owner.rect.centery + self.offset[</span><span class="s2">1</span><span class="s1">] * math.sin(math.radians(self.angle+</span><span class="s2">2</span><span class="s1">))</span>
+			<span class="s1">self.barrel = (x, y)</span>
+			<span class="s1">x = self.owner.mapX + self.offset[</span><span class="s2">1</span><span class="s1">] * math.cos(math.radians(self.angle))</span>
+			<span class="s1">y = self.owner.mapY + self.offset[</span><span class="s2">1</span><span class="s1">] * math.sin(math.radians(self.angle))</span>
+			<span class="s1">self.barrelMap = (x, y)</span>
+
+			<span class="s1">x = self.owner.rect.centerx + </span><span class="s2">150 </span><span class="s1">* math.cos(math.radians(self.angle+</span><span class="s2">2</span><span class="s1">))</span>
+			<span class="s1">y = self.owner.rect.centery + </span><span class="s2">150 </span><span class="s1">* math.sin(math.radians(self.angle+</span><span class="s2">2</span><span class="s1">))</span>
+			<span class="s1">self.trajectory = (x, y)</span>
+
+			<span class="s0">return </span><span class="s1">self.angle</span>
+
+		<span class="s0">except</span><span class="s1">:</span>
+			<span class="s1">print(</span><span class="s3">&quot;exception&quot;</span><span class="s1">)</span>
+			<span class="s1">self.rect.center = lastPos</span>
+
+	<span class="s3">''' 
+    Name: fire 
+    Parameters: None 
+    Returns: self.barrelMap:tuple, bulletList:sprite group 
+    Purpose: Creates a bullet and calculates the angle and velocity 
+    '''</span>
+	<span class="s0">def </span><span class="s1">fire(self):</span>
+		<span class="s4">#calculates the increment</span>
+		<span class="s1">increment = [self.barrel[</span><span class="s2">0</span><span class="s1">] - self.trajectory[</span><span class="s2">0</span><span class="s1">], self.barrel[</span><span class="s2">1</span><span class="s1">] - self.trajectory[</span><span class="s2">1</span><span class="s1">]]</span>
+		<span class="s1">hypotenuse = math.sqrt((increment[</span><span class="s2">0</span><span class="s1">] ** </span><span class="s2">2</span><span class="s1">) + (increment[</span><span class="s2">1</span><span class="s1">] ** </span><span class="s2">2</span><span class="s1">))</span>
+		<span class="s4">#Divides hypotenuse to work out the amount of seconds it would take to reach the mouse</span>
+		<span class="s1">seconds = hypotenuse / </span><span class="s2">10</span>
+		<span class="s1">bulletList = []</span>
+		<span class="s0">for </span><span class="s1">count </span><span class="s0">in </span><span class="s1">range(</span><span class="s2">2</span><span class="s1">):</span>
+			<span class="s1">increment[count] = increment[count] * -</span><span class="s2">1</span>
+			<span class="s1">increment[count] = increment[count] / seconds </span><span class="s4">#divides the length of the distance by the number of seconds to get the distance per second</span>
+		<span class="s1">bulletList.append(increment)</span>
+		<span class="s0">return </span><span class="s1">self.barrelMap, bulletList</span>
+
+	<span class="s3">''' 
+    Name: draw 
+    Parameters: screen:rect 
+    Returns: None 
+    Purpose: Displays the gun's sprite. 
+    '''</span>
+	<span class="s0">def </span><span class="s1">draw(self, screen):</span>
+		<span class="s1">screen.blit(self.image, self.rect)</span>
+
+<span class="s3">''' 
+Name: Pistol 
+Purpose: Type of gun that shoots singular shots. 
+'''</span>
+<span class="s0">class </span><span class="s1">Pistol(Gun):</span>
+
+	<span class="s5">''' 
+    Name: __init__ 
+    Parameters: owner:object 
+    Returns: None 
+    Purpose: Constructor. 
+    '''</span>
+	<span class="s0">def </span><span class="s1">__init__(self, owner):</span>
+		<span class="s1">super().__init__(</span><span class="s3">&quot;Assets/gun.png&quot;</span><span class="s1">, </span><span class="s2">5</span><span class="s1">, owner, (</span><span class="s2">8</span><span class="s1">, </span><span class="s2">70</span><span class="s1">, </span><span class="s2">50</span><span class="s1">), </span><span class="s2">100</span><span class="s1">, </span><span class="s3">&quot;Pistol&quot;</span><span class="s1">)</span>
+		<span class="s1">self.description = </span><span class="s3">&quot;A basic pistol for basic people.&quot;</span>
+		<span class="s1">self.inventoryImage = pygame.image.load(</span><span class="s3">&quot;Assets/gun.png&quot;</span><span class="s1">)</span>
+		<span class="s1">self.inventoryImage = pygame.transform.scale(self.inventoryImage, (</span><span class="s2">400</span><span class="s1">, </span><span class="s2">300</span><span class="s1">))</span>
+
+<span class="s3">''' 
+Name: Shotgun 
+Purpose: Shoots a random spray of bullets. 
+'''</span>
+<span class="s0">class </span><span class="s1">Shotgun(Gun):</span>
+
+	<span class="s5">''' 
+    Name: __init__ 
+    Parameters: owner:object 
+    Returns: None 
+    Purpose: Constructor. 
+    '''</span>
+	<span class="s0">def </span><span class="s1">__init__(self, owner):</span>
+		<span class="s1">super().__init__(</span><span class="s3">&quot;Assets/shotgun.png&quot;</span><span class="s1">, </span><span class="s2">4</span><span class="s1">, owner, (</span><span class="s2">4</span><span class="s1">, </span><span class="s2">110</span><span class="s1">, </span><span class="s2">65</span><span class="s1">), </span><span class="s2">100</span><span class="s1">, </span><span class="s3">&quot;Shotgun&quot;</span><span class="s1">, (</span><span class="s2">110</span><span class="s1">, </span><span class="s2">40</span><span class="s1">))</span>
+		<span class="s1">self.description = </span><span class="s3">&quot;A shotgun which shoots a powerful but inaccurate barage of bullets.&quot;</span>
+		<span class="s1">self.inventoryImage = pygame.image.load(</span><span class="s3">&quot;Assets/shotgun.png&quot;</span><span class="s1">)</span>
+		<span class="s1">self.inventoryImage = pygame.transform.scale(self.inventoryImage, (</span><span class="s2">440</span><span class="s1">, </span><span class="s2">160</span><span class="s1">))</span>
+
+	<span class="s3">''' 
+    Name: fire 
+    Parameters: None 
+    Returns: self.barrelMap:tuple, bulletList:sprite group 
+    Purpose: Modified version of the fire function which instead shoots a random spray of several bullets. 
+    '''</span>
+	<span class="s0">def </span><span class="s1">fire(self):</span>
+		<span class="s4">#calculates the increment</span>
+		<span class="s1">increment = [self.barrel[</span><span class="s2">0</span><span class="s1">] - self.trajectory[</span><span class="s2">0</span><span class="s1">], self.barrel[</span><span class="s2">1</span><span class="s1">] - self.trajectory[</span><span class="s2">1</span><span class="s1">]]</span>
+		<span class="s1">hypotenuse = math.sqrt((increment[</span><span class="s2">0</span><span class="s1">] ** </span><span class="s2">2</span><span class="s1">) + (increment[</span><span class="s2">1</span><span class="s1">] ** </span><span class="s2">2</span><span class="s1">))</span>
+		<span class="s4">#Divides hypotenuse to work out the amount of seconds it would take to reach the mouse</span>
+		<span class="s1">seconds = hypotenuse / </span><span class="s2">10</span>
+		<span class="s1">bulletList = []</span>
+		<span class="s0">for </span><span class="s1">count </span><span class="s0">in </span><span class="s1">range(</span><span class="s2">2</span><span class="s1">):</span>
+			<span class="s1">increment[count] = increment[count] * -</span><span class="s2">1</span>
+			<span class="s1">increment[count] = increment[count] / seconds </span><span class="s4">#divides the length of the distance by the number of seconds to get the distance per second</span>
+		<span class="s0">for </span><span class="s1">count </span><span class="s0">in </span><span class="s1">range(</span><span class="s2">6</span><span class="s1">):</span>
+			<span class="s1">bulletList.append([])</span>
+			<span class="s0">for </span><span class="s1">i </span><span class="s0">in </span><span class="s1">increment:</span>
+				<span class="s1">alter = random.randint(-</span><span class="s2">4</span><span class="s1">, </span><span class="s2">4</span><span class="s1">)</span>
+				<span class="s1">bulletList[-</span><span class="s2">1</span><span class="s1">].append(i+alter)</span>
+			<span class="s1">check = </span><span class="s0">False</span>
+			<span class="s0">for </span><span class="s1">item </span><span class="s0">in </span><span class="s1">bulletList[count]:</span>
+				<span class="s0">if </span><span class="s1">item &gt; </span><span class="s2">4</span><span class="s1">:</span>
+					<span class="s1">check = </span><span class="s0">True</span>
+			<span class="s0">else</span><span class="s1">:</span>
+				<span class="s0">while not </span><span class="s1">check:</span>
+					<span class="s1">bulletList[count] = []</span>
+					<span class="s0">for </span><span class="s1">i </span><span class="s0">in </span><span class="s1">increment:</span>
+						<span class="s1">alter = random.randint(-</span><span class="s2">4</span><span class="s1">, </span><span class="s2">4</span><span class="s1">)</span>
+						<span class="s1">bulletList[-</span><span class="s2">1</span><span class="s1">].append(i + alter)</span>
+					<span class="s0">for </span><span class="s1">item </span><span class="s0">in </span><span class="s1">bulletList[count]:</span>
+						<span class="s0">if </span><span class="s1">item &gt; </span><span class="s2">4 </span><span class="s0">or </span><span class="s1">item &lt; -</span><span class="s2">4</span><span class="s1">:</span>
+							<span class="s1">check = </span><span class="s0">True</span>
+		<span class="s0">return </span><span class="s1">self.barrelMap, bulletList</span>
+
+<span class="s0">class </span><span class="s1">NeoGun(Gun):</span>
+	<span class="s0">def </span><span class="s1">__init__(self, owner):</span>
+		<span class="s1">super().__init__(</span><span class="s3">&quot;Assets/neogun.png&quot;</span><span class="s1">, </span><span class="s2">4</span><span class="s1">, owner, (</span><span class="s2">8</span><span class="s1">, </span><span class="s2">70</span><span class="s1">, </span><span class="s2">50</span><span class="s1">), </span><span class="s2">100</span><span class="s1">, </span><span class="s3">&quot;NeoGun&quot;</span><span class="s1">)</span>
+		<span class="s1">self.description = </span><span class="s3">&quot;Introducing the latest technological marvel: the NeoGun! (All rights reserved).&quot;</span>
+		<span class="s1">self.inventoryImage = pygame.image.load(</span><span class="s3">&quot;Assets/neogun.png&quot;</span><span class="s1">)</span>
+		<span class="s1">self.inventoryImage = pygame.transform.scale(self.inventoryImage, (</span><span class="s2">400</span><span class="s1">, </span><span class="s2">300</span><span class="s1">))</span>
+
+<span class="s0">class </span><span class="s1">NeoShotgun(Gun):</span>
+	<span class="s0">def </span><span class="s1">__init__(self, owner):</span>
+		<span class="s1">super().__init__(</span><span class="s3">&quot;Assets/neoshotgun.png&quot;</span><span class="s1">, </span><span class="s2">2</span><span class="s1">, owner, (</span><span class="s2">4</span><span class="s1">, </span><span class="s2">110</span><span class="s1">, </span><span class="s2">65</span><span class="s1">), </span><span class="s2">100</span><span class="s1">, </span><span class="s3">&quot;NeoShotgun&quot;</span><span class="s1">, (</span><span class="s2">110</span><span class="s1">, </span><span class="s2">40</span><span class="s1">))</span>
+		<span class="s1">self.description = </span><span class="s3">&quot;Shoots a weak but large sum of piercing projectiles.&quot;</span>
+		<span class="s1">self.inventoryImage = pygame.image.load(</span><span class="s3">&quot;Assets/neoshotgun.png&quot;</span><span class="s1">)</span>
+		<span class="s1">self.inventoryImage = pygame.transform.scale(self.inventoryImage, (</span><span class="s2">440</span><span class="s1">, </span><span class="s2">160</span><span class="s1">))</span>
+
+	<span class="s0">def </span><span class="s1">fire(self):</span>
+		<span class="s4">#calculates the increment</span>
+		<span class="s1">increment = [self.barrel[</span><span class="s2">0</span><span class="s1">] - self.trajectory[</span><span class="s2">0</span><span class="s1">], self.barrel[</span><span class="s2">1</span><span class="s1">] - self.trajectory[</span><span class="s2">1</span><span class="s1">]]</span>
+		<span class="s1">hypotenuse = math.sqrt((increment[</span><span class="s2">0</span><span class="s1">] ** </span><span class="s2">2</span><span class="s1">) + (increment[</span><span class="s2">1</span><span class="s1">] ** </span><span class="s2">2</span><span class="s1">))</span>
+		<span class="s4">#Divides hypotenuse to work out the amount of seconds it would take to reach the mouse</span>
+		<span class="s1">seconds = hypotenuse / </span><span class="s2">10</span>
+		<span class="s1">bulletList = []</span>
+		<span class="s0">for </span><span class="s1">count </span><span class="s0">in </span><span class="s1">range(</span><span class="s2">2</span><span class="s1">):</span>
+			<span class="s1">increment[count] = increment[count] * -</span><span class="s2">1</span>
+			<span class="s1">increment[count] = increment[count] / seconds </span><span class="s4">#divides the length of the distance by the number of seconds to get the distance per second</span>
+		<span class="s0">for </span><span class="s1">count </span><span class="s0">in </span><span class="s1">range(</span><span class="s2">6</span><span class="s1">):</span>
+			<span class="s1">bulletList.append([])</span>
+			<span class="s0">for </span><span class="s1">i </span><span class="s0">in </span><span class="s1">increment:</span>
+				<span class="s1">alter = random.randint(-</span><span class="s2">4</span><span class="s1">, </span><span class="s2">4</span><span class="s1">)</span>
+				<span class="s1">bulletList[-</span><span class="s2">1</span><span class="s1">].append(i+alter)</span>
+			<span class="s1">check = </span><span class="s0">False</span>
+			<span class="s0">for </span><span class="s1">item </span><span class="s0">in </span><span class="s1">bulletList[count]:</span>
+				<span class="s0">if </span><span class="s1">item &gt; </span><span class="s2">4</span><span class="s1">:</span>
+					<span class="s1">check = </span><span class="s0">True</span>
+			<span class="s0">else</span><span class="s1">:</span>
+				<span class="s0">while not </span><span class="s1">check:</span>
+					<span class="s1">bulletList[count] = []</span>
+					<span class="s0">for </span><span class="s1">i </span><span class="s0">in </span><span class="s1">increment:</span>
+						<span class="s1">alter = random.randint(-</span><span class="s2">4</span><span class="s1">, </span><span class="s2">4</span><span class="s1">)</span>
+						<span class="s1">bulletList[-</span><span class="s2">1</span><span class="s1">].append(i + alter)</span>
+					<span class="s0">for </span><span class="s1">item </span><span class="s0">in </span><span class="s1">bulletList[count]:</span>
+						<span class="s0">if </span><span class="s1">item &gt; </span><span class="s2">4 </span><span class="s0">or </span><span class="s1">item &lt; -</span><span class="s2">4</span><span class="s1">:</span>
+							<span class="s1">check = </span><span class="s0">True</span>
+		<span class="s0">return </span><span class="s1">self.barrelMap, bulletList</span>
+
+<span class="s3">''' 
+Name: priorityQueue 
+Purpose: This is a priority queue 
+'''</span>
+<span class="s0">class </span><span class="s1">priorityQueue:</span>
+
+	<span class="s5">''' 
+    Name: __init__ 
+    Parameters: None 
+    Returns: None 
+    Purpose: Constructor for priority queues usesd for pathfinding. 
+    '''</span>
+	<span class="s0">def </span><span class="s1">__init__(self):</span>
+		<span class="s1">self.queue = []</span>
+		<span class="s1">self.length = len(self.queue)-</span><span class="s2">1</span><span class="s4">#Stores the index of the last item in the list</span>
+
+	<span class="s3">''' 
+    Name: enqueue 
+    Parameters: item:list 
+    Returns: None 
+    Purpose: This adds an item to the queue and orders it based of it's combined heuristic.  
+    '''</span>
+	<span class="s0">def </span><span class="s1">enqueue(self, item):</span><span class="s4">#This adds an item and readjusts</span>
+		<span class="s0">if </span><span class="s1">self.length == -</span><span class="s2">1</span><span class="s1">:</span>
+			<span class="s1">self.queue.append(item)</span>
+
+		<span class="s0">elif </span><span class="s1">self.queue[self.length-</span><span class="s2">1</span><span class="s1">][</span><span class="s2">2</span><span class="s1">] &lt;= item[</span><span class="s2">2</span><span class="s1">]:</span>
+			<span class="s1">self.queue.append(item)</span>
+
+		<span class="s0">else</span><span class="s1">:</span>
+			<span class="s1">inserted = </span><span class="s0">False</span>
+			<span class="s1">count = </span><span class="s2">0</span>
+			<span class="s0">while </span><span class="s1">inserted == </span><span class="s0">False</span><span class="s1">:</span>
+				<span class="s0">if </span><span class="s1">self.queue[count][</span><span class="s2">2</span><span class="s1">] &gt;= item[</span><span class="s2">2</span><span class="s1">]:</span>
+					<span class="s1">self.queue.insert(count, item)</span>
+					<span class="s1">inserted = </span><span class="s0">True</span>
+				<span class="s1">count += </span><span class="s2">1</span>
+		<span class="s1">self.length += </span><span class="s2">1</span>
+
+	<span class="s3">''' 
+    Name: dequeue 
+    Parameters: None 
+    Returns: item:List 
+    Purpose: Removes the first item in the queue then returns it. 
+    '''</span>
+	<span class="s0">def </span><span class="s1">dequeue(self):</span><span class="s4">#This removes the first item and returns it</span>
+		<span class="s0">if </span><span class="s1">self.length != -</span><span class="s2">1</span><span class="s1">:</span><span class="s4">#Ensures the queue is not empty</span>
+			<span class="s1">item = self.queue[</span><span class="s2">0</span><span class="s1">]</span>
+			<span class="s1">self.queue.remove(item)</span>
+			<span class="s1">self.length -= </span><span class="s2">1</span>
+			<span class="s0">return </span><span class="s1">item</span>
+
+	<span class="s3">''' 
+    Name: insert 
+    Parameters: path:list 
+    Returns: None 
+    Purpose: This removes an item then enqueues a version of the same item with the updated combined heuristic. 
+    '''</span>
+	<span class="s0">def </span><span class="s1">insert(self, path):</span>
+		<span class="s0">for </span><span class="s1">item </span><span class="s0">in </span><span class="s1">self.queue:</span>
+			<span class="s0">if </span><span class="s1">item[</span><span class="s2">0</span><span class="s1">] == path[</span><span class="s2">0</span><span class="s1">]:</span>
+				<span class="s1">self.queue.remove(item)</span>
+		<span class="s1">self.length -= </span><span class="s2">1</span>
+		<span class="s1">self.enqueue(path)</span>
+
+
+<span class="s3">''' 
+Name: Enemy 
+Purpose: This is an enemy which tracks and attacks any players in it's vision. 
+'''</span>
+<span class="s0">class </span><span class="s1">Enemy(pygame.sprite.Sprite):</span>
+
+	<span class="s5">''' 
+    Name: __init__ 
+    Parameters: x:int, y:int, id:int 
+    Returns: None 
+    Purpose: Constructor for enemies. 
+    '''</span>
+	<span class="s0">def </span><span class="s1">__init__(self, x, y, id):</span>
+		<span class="s1">super().__init__()</span>
+		<span class="s1">self.width = TILE_SIZE</span>
+		<span class="s1">self.height = TILE_SIZE</span>
+		<span class="s1">self.image = pygame.image.load(</span><span class="s3">&quot;Assets/evilBear.png&quot;</span><span class="s1">)</span>
+		<span class="s1">self.image_orig = pygame.image.load(</span><span class="s3">&quot;Assets/evilBear.png&quot;</span><span class="s1">)</span>
+		<span class="s1">self.image_orig = pygame.transform.scale(self.image_orig, (self.width, self.height))</span>
+		<span class="s1">self.image = pygame.transform.scale(self.image,(self.width,self.height))</span>
+		<span class="s1">self.rect = self.image.get_rect()</span>
+		<span class="s1">self.rect.center = </span><span class="s2">1000</span><span class="s1">, </span><span class="s2">1000</span>
+		<span class="s1">self.mapX = x</span>
+		<span class="s1">self.mapY = y</span>
+		<span class="s1">self.direction = </span><span class="s3">&quot;UP&quot;</span>
+		<span class="s1">self.startTime = </span><span class="s0">False</span>
+		<span class="s1">self.id = id</span>
+		<span class="s1">self.health = </span><span class="s2">100</span>
+
+	<span class="s3">''' 
+    Name: locate 
+    Parameters: playerList:spriteGroup, world:object 
+    Returns: successfulPath:list 
+    Purpose: This makes use of an A* search and a priority queue in order to find a path from the enemy to any players  
+    in the enemies' sightings. 
+    '''</span>
+	<span class="s0">def </span><span class="s1">locate(self, playerList, world):</span><span class="s4">#could do with Nodes</span>
+		<span class="s1">shortestDis = </span><span class="s0">False</span>
+		<span class="s1">target = </span><span class="s0">False</span>
+		<span class="s0">if </span><span class="s1">playerList:</span><span class="s4">#If a player has been sighted</span>
+			<span class="s0">for </span><span class="s1">player </span><span class="s0">in </span><span class="s1">playerList:</span><span class="s4">#This finds the closest one</span>
+				<span class="s1">distance = (self.mapX - player.mapX), (self.mapY - player.mapY)</span>
+				<span class="s1">hypotenuse = math.sqrt((distance[</span><span class="s2">0</span><span class="s1">]**</span><span class="s2">2</span><span class="s1">)+(distance[</span><span class="s2">1</span><span class="s1">]**</span><span class="s2">2</span><span class="s1">))</span>
+				<span class="s0">if not </span><span class="s1">shortestDis </span><span class="s0">or </span><span class="s1">hypotenuse &lt; shortestDis:</span>
+					<span class="s1">target = player</span>
+					<span class="s1">shortest = hypotenuse</span>
+		<span class="s4">#A* search</span>
+		<span class="s1">paths = priorityQueue()</span><span class="s4"># structure of each entry - [Node name, path cost, combined heuristic (distance from Node + The path ),    [Node paths]]</span>
+		<span class="s1">goalNode = world.nodes[target.mapY//TILE_SIZE][target.mapX//TILE_SIZE]</span>
+		<span class="s1">solution = </span><span class="s0">False</span>
+		<span class="s1">X = int(self.mapX//TILE_SIZE)</span><span class="s4">#Need the location of the enemy in reference to Nodes</span>
+		<span class="s1">Y = int(self.mapY//TILE_SIZE)</span>
+		<span class="s1">paths.enqueue([world.nodes[Y][X], </span><span class="s2">0</span><span class="s1">, math.sqrt(((world.nodes[Y][X].mapX - target.mapX)**</span><span class="s2">2</span><span class="s1">)+((world.nodes[Y][X].mapY - target.mapY)**</span><span class="s2">2</span><span class="s1">)), []])</span><span class="s4">#This is the start node</span>
+		<span class="s1">visited = []</span>
+		<span class="s0">while not </span><span class="s1">solution:</span>
+			<span class="s1">current = paths.dequeue()</span>
+			<span class="s1">visited.append(current[</span><span class="s2">0</span><span class="s1">])</span>
+			<span class="s0">for </span><span class="s1">neighbour </span><span class="s0">in </span><span class="s1">current[</span><span class="s2">0</span><span class="s1">].neighbours:</span><span class="s4">#Evaluates all neighbours to be queued</span>
+				<span class="s4"># if neighbour:</span>
+				<span class="s1">present = </span><span class="s0">False</span><span class="s4">#This checks to ensure that there aren't duplicates of the same Node being added</span>
+
+				<span class="s4">#Checking the node hasn't already been checked or queued</span>
+				<span class="s0">if </span><span class="s1">neighbour </span><span class="s0">in </span><span class="s1">visited:</span>
+					<span class="s1">present = </span><span class="s0">True</span>
+				<span class="s0">else</span><span class="s1">:</span>
+					<span class="s0">for </span><span class="s1">path </span><span class="s0">in </span><span class="s1">paths.queue:</span>
+						<span class="s0">if </span><span class="s1">neighbour == path[</span><span class="s2">0</span><span class="s1">]:</span>
+							<span class="s1">present = </span><span class="s0">True</span>
+							<span class="s4">#This updates a path if a shorter route to the same node is found</span>
+							<span class="s0">if </span><span class="s1">path[</span><span class="s2">1</span><span class="s1">] &gt; current[</span><span class="s2">1</span><span class="s1">] + abs(math.sqrt(((neighbour.mapX - target.mapX)**</span><span class="s2">2</span><span class="s1">)+((neighbour.mapY - target.mapY)**</span><span class="s2">2</span><span class="s1">))):</span>
+								<span class="s1">path[</span><span class="s2">1</span><span class="s1">] = current[</span><span class="s2">1</span><span class="s1">] + abs(math.sqrt(((neighbour.mapX - target.mapX)**</span><span class="s2">2</span><span class="s1">)+((neighbour.mapY - target.mapY)**</span><span class="s2">2</span><span class="s1">)))</span>
+								<span class="s1">path[</span><span class="s2">2</span><span class="s1">] = abs(math.sqrt(((neighbour.mapX - current[</span><span class="s2">0</span><span class="s1">].mapX) ** </span><span class="s2">2</span><span class="s1">)+((neighbour.mapY - current[</span><span class="s2">0</span><span class="s1">].mapY)**</span><span class="s2">2</span><span class="s1">))) + abs(math.sqrt(((neighbour.mapX - target.mapX)**</span><span class="s2">2</span><span class="s1">)+((neighbour.mapY - target.mapY)**</span><span class="s2">2</span><span class="s1">)))</span>
+								<span class="s1">pathNodes = current[</span><span class="s2">3</span><span class="s1">]</span>
+								<span class="s1">pathNodes.append(current[</span><span class="s2">0</span><span class="s1">])</span>
+								<span class="s1">path[</span><span class="s2">3</span><span class="s1">] = pathNodes</span>
+								<span class="s1">paths.insert(path)</span>
+
+
+
+				<span class="s0">if not </span><span class="s1">present:</span>
+					<span class="s1">pathNodes = current[</span><span class="s2">3</span><span class="s1">][:]</span>
+					<span class="s1">pathNodes.append(current[</span><span class="s2">0</span><span class="s1">])</span>
+					<span class="s0">if </span><span class="s1">neighbour == goalNode:</span>
+						<span class="s1">solution = </span><span class="s0">True</span>
+						<span class="s1">successfulPath = pathNodes</span>
+						<span class="s0">del</span><span class="s1">(paths)</span>
+						<span class="s0">return </span><span class="s1">successfulPath</span>
+
+					<span class="s0">else</span><span class="s1">:</span>
+						<span class="s1">paths.enqueue([neighbour, abs(math.sqrt(((neighbour.mapX - current[</span><span class="s2">0</span><span class="s1">].mapX) ** </span><span class="s2">2</span><span class="s1">)+((neighbour.mapY - current[</span><span class="s2">0</span><span class="s1">].mapY)**</span><span class="s2">2</span><span class="s1">))) + current[</span><span class="s2">1</span><span class="s1">],</span><span class="s4">#this calculates the hypotenuse from one neighbour to another then adds the previous nodes path cost</span>
+								  <span class="s1">abs(math.sqrt(((neighbour.mapX - current[</span><span class="s2">0</span><span class="s1">].mapX) ** </span><span class="s2">2</span><span class="s1">)+((neighbour.mapY - current[</span><span class="s2">0</span><span class="s1">].mapY)**</span><span class="s2">2</span><span class="s1">))) + abs(math.sqrt(((neighbour.mapX - target.mapX)**</span><span class="s2">2</span><span class="s1">)+((neighbour.mapY - target.mapY)**</span><span class="s2">2</span><span class="s1">))), pathNodes])</span>
+
+			<span class="s0">if </span><span class="s1">current[</span><span class="s2">0</span><span class="s1">] == goalNode:</span>
+				<span class="s1">solution = </span><span class="s0">True</span>
+
+	<span class="s3">''' 
+    Name: travel 
+    Parameters: path:list 
+    Returns: None 
+    Purpose: This moves the enemy closer to the next node in the path it is given. If it is close enough to the player 
+    it will now begin exploding. 
+    '''</span>
+	<span class="s0">def </span><span class="s1">travel(self, path):</span>
+		<span class="s4">#This stops the game from breaking if the player is so close that no path is returned</span>
+		<span class="s0">if </span><span class="s1">path:</span>
+			<span class="s4"># Starts the attack sequence although maybe I should move this somewhere else?</span>
+			<span class="s0">if </span><span class="s1">len(path) &lt; </span><span class="s2">2 </span><span class="s0">and not </span><span class="s1">self.startTime:</span>
+				<span class="s1">self.startTime = pygame.time.get_ticks()</span>
+
+			<span class="s4">#Moves the enemy</span>
+			<span class="s0">else</span><span class="s1">:</span>
+				<span class="s1">nextNode = path[</span><span class="s2">1</span><span class="s1">]</span>
+				<span class="s1">sides = [self.mapX - nextNode.mapX, self.mapY - nextNode.mapY]</span>
+
+				<span class="s1">hypotenuse = math.sqrt((sides[</span><span class="s2">0</span><span class="s1">]**</span><span class="s2">2</span><span class="s1">)+(sides[</span><span class="s2">1</span><span class="s1">]**</span><span class="s2">2</span><span class="s1">))</span>
+				<span class="s1">seconds = hypotenuse//</span><span class="s2">2</span>
+				<span class="s4"># return self.mapX, nextNode.mapX, self.mapY, nextNode.mapY</span>
+				<span class="s0">for </span><span class="s1">count </span><span class="s0">in </span><span class="s1">range(len(sides)):</span>
+					<span class="s1">sides[count] = sides[count] * -</span><span class="s2">1</span>
+					<span class="s1">sides[count] = sides[count] // seconds</span>
+
+
+				<span class="s1">self.mapX += sides[</span><span class="s2">0</span><span class="s1">]</span>
+				<span class="s1">self.mapY += sides[</span><span class="s2">1</span><span class="s1">]</span>
+
+	<span class="s3">''' 
+    Name: attack 
+    Parameters: None 
+    Returns: None 
+    Purpose: This starts an explosion when enough time has passed since the enemy has begun destructing. It will then  
+    spawn an explosion and destroy itself.  
+    '''</span>
+	<span class="s0">def </span><span class="s1">attack(self):</span>
+		<span class="s4">#Creates explosion</span>
+		<span class="s1">e = Explosion(self.mapX, self.mapY, self.rect.center[</span><span class="s2">0</span><span class="s1">], self.rect.center[</span><span class="s2">1</span><span class="s1">])</span>
+		<span class="s1">explosions.add(e)</span>
+		<span class="s1">enemyList.remove(self)</span>
+		<span class="s1">self.kill()</span>
+
+	<span class="s3">''' 
+    Name: takeDamage 
+    Parameters: damage:int 
+    Returns: None 
+    Purpose: Damages the enemy. 
+    '''</span>
+	<span class="s0">def </span><span class="s1">takeDamage(self, damage):</span>
+		<span class="s1">self.health -= damage</span>
+		<span class="s0">if </span><span class="s1">self.health &lt;= </span><span class="s2">0</span><span class="s1">:</span>
+			<span class="s1">self.health = </span><span class="s2">0</span>
+
+
+<span class="s3">''' 
+Name: ServerEnemy 
+Purpose: An enemy which is modified to work on serverSide. 
+'''</span>
+<span class="s0">class </span><span class="s1">ServerEnemy:</span>
+	<span class="s1">idcount = </span><span class="s2">0</span>
+	<span class="s1">directions = [(-</span><span class="s2">1</span><span class="s1">, -</span><span class="s2">1</span><span class="s1">), (</span><span class="s2">0</span><span class="s1">, -</span><span class="s2">2</span><span class="s1">), (</span><span class="s2">1</span><span class="s1">, -</span><span class="s2">1</span><span class="s1">), (</span><span class="s2">2</span><span class="s1">, </span><span class="s2">0</span><span class="s1">), (</span><span class="s2">1</span><span class="s1">, </span><span class="s2">1</span><span class="s1">), (</span><span class="s2">0</span><span class="s1">, </span><span class="s2">2</span><span class="s1">), (-</span><span class="s2">1</span><span class="s1">, </span><span class="s2">1</span><span class="s1">), (-</span><span class="s2">2</span><span class="s1">, </span><span class="s2">0</span><span class="s1">)]</span>
+
+	<span class="s3">''' 
+    Name: __init__ 
+    Parameters: x:integer, y:integer 
+    Returns: None 
+    Purpose: Constructor. 
+    '''</span>
+	<span class="s0">def </span><span class="s1">__init__(self, x, y):</span>
+		<span class="s1">self.width = TILE_SIZE</span>
+		<span class="s1">self.height = TILE_SIZE</span>
+		<span class="s1">self.mapX = x</span>
+		<span class="s1">self.mapY = y</span>
+		<span class="s1">self.startTime = </span><span class="s0">False</span>
+		<span class="s1">self.health = </span><span class="s2">100</span>
+		<span class="s1">self.id = ServerEnemy.idcount</span>
+		<span class="s1">ServerEnemy.idcount += </span><span class="s2">1</span>
+		<span class="s1">self.confirm = </span><span class="s0">False</span>
+		<span class="s1">self.walking = </span><span class="s2">0</span>
+		<span class="s1">self.direction = (</span><span class="s2">4</span><span class="s1">, </span><span class="s2">4</span><span class="s1">)</span>
+		<span class="s1">self.targets = []</span>
+
+	<span class="s3">''' 
+    Name: locate 
+    Parameters: playerList:dict, serverNodes:list 
+    Returns: solution:list 
+    Purpose: Performs an A* search if a player has been spotted. Enemies will prioritise the closest visible enemy. 
+    '''</span>
+	<span class="s0">def </span><span class="s1">locate(self, playerList, serverNodes):</span>
+		<span class="s0">for </span><span class="s1">p </span><span class="s0">in </span><span class="s1">playerList:</span>
+			<span class="s1">distance = (self.mapX - playerList[p].mapX), (self.mapY - playerList[p].mapY)</span>
+			<span class="s1">hypotenuse = math.sqrt((distance[</span><span class="s2">0</span><span class="s1">] ** </span><span class="s2">2</span><span class="s1">) + (distance[</span><span class="s2">1</span><span class="s1">] ** </span><span class="s2">2</span><span class="s1">))</span>
+			<span class="s0">if </span><span class="s1">hypotenuse &lt; </span><span class="s2">500 </span><span class="s0">and not </span><span class="s1">playerList[p].dead:</span>
+				<span class="s1">self.targets.append([playerList[p], hypotenuse])</span>
+
+			<span class="s0">for </span><span class="s1">t </span><span class="s0">in </span><span class="s1">self.targets:</span>
+				<span class="s0">if </span><span class="s1">t[</span><span class="s2">0</span><span class="s1">] == playerList[p]:</span>
+					<span class="s0">if </span><span class="s1">playerList[p].dead:</span>
+						<span class="s1">self.targets.remove(t)</span>
+					<span class="s0">else</span><span class="s1">:</span>
+						<span class="s1">t[</span><span class="s2">1</span><span class="s1">] = hypotenuse</span>
+
+		<span class="s0">if </span><span class="s1">len(self.targets) &gt; </span><span class="s2">0</span><span class="s1">:</span><span class="s4">#If a player has been sighted</span>
+			<span class="s1">shortestDis = </span><span class="s0">False</span>
+			<span class="s1">target = </span><span class="s0">False</span>
+			<span class="s0">for </span><span class="s1">p </span><span class="s0">in </span><span class="s1">self.targets:</span><span class="s4">#This finds the closest one</span>
+				<span class="s0">if not </span><span class="s1">shortestDis </span><span class="s0">or </span><span class="s1">p[</span><span class="s2">1</span><span class="s1">] &lt; shortestDis:</span>
+					<span class="s1">target = p[</span><span class="s2">0</span><span class="s1">]</span>
+					<span class="s1">shortestDis = p[</span><span class="s2">1</span><span class="s1">]</span>
+
+			<span class="s4">#A* search</span>
+			<span class="s1">paths = priorityQueue()</span><span class="s4"># structure of each entry - [Node name, path cost, combined heuristic (distance from Node + The path ),    [Node paths]]</span>
+			<span class="s1">goalNode = serverNodes[target.mapY//TILE_SIZE][target.mapX//TILE_SIZE]</span>
+			<span class="s1">solution = </span><span class="s0">False</span>
+			<span class="s1">X = int(self.mapX//TILE_SIZE)</span><span class="s4">#Need the location of the enemy in reference to Nodes</span>
+			<span class="s1">Y = int(self.mapY//TILE_SIZE)</span>
+			<span class="s0">if not </span><span class="s1">serverNodes[Y][X]:</span>
+				<span class="s1">count = </span><span class="s2">0</span>
+				<span class="s1">flip = </span><span class="s0">False</span>
+				<span class="s0">while not </span><span class="s1">serverNodes[Y][X]:</span>
+					<span class="s0">if </span><span class="s1">count &lt; </span><span class="s2">2</span><span class="s1">:</span>
+						<span class="s0">if not </span><span class="s1">flip:</span>
+							<span class="s1">X -= </span><span class="s2">1</span>
+							<span class="s1">count += </span><span class="s2">1</span>
+						<span class="s0">elif </span><span class="s1">flip:</span>
+							<span class="s1">Y -= </span><span class="s2">1</span>
+							<span class="s1">count += </span><span class="s2">1</span>
+					<span class="s0">else</span><span class="s1">:</span>
+						<span class="s1">count = </span><span class="s2">0</span>
+						<span class="s1">flip = </span><span class="s0">not </span><span class="s1">flip</span>
+
+			<span class="s1">paths.enqueue([serverNodes[Y][X], </span><span class="s2">0</span><span class="s1">, math.sqrt(((serverNodes[Y][X].mapX - target.mapX)**</span><span class="s2">2</span><span class="s1">)+((serverNodes[Y][X].mapY - target.mapY)**</span><span class="s2">2</span><span class="s1">)), []])</span><span class="s4">#This is the start node</span>
+			<span class="s1">visited = []</span>
+			<span class="s0">while not </span><span class="s1">solution:</span>
+				<span class="s1">current = paths.dequeue()</span>
+				<span class="s1">visited.append(current[</span><span class="s2">0</span><span class="s1">])</span>
+				<span class="s0">for </span><span class="s1">neighbour </span><span class="s0">in </span><span class="s1">current[</span><span class="s2">0</span><span class="s1">].neighbours:</span><span class="s4">#Evaluates all neighbours to be queued</span>
+					<span class="s4"># if neighbour:</span>
+					<span class="s1">present = </span><span class="s0">False</span><span class="s4">#This checks to ensure that there aren't duplicates of the same Node being added</span>
+
+					<span class="s4">#Checking the node hasn't already been checked or queued</span>
+					<span class="s0">if </span><span class="s1">neighbour </span><span class="s0">in </span><span class="s1">visited:</span>
+						<span class="s1">present = </span><span class="s0">True</span>
+					<span class="s0">else</span><span class="s1">:</span>
+						<span class="s0">for </span><span class="s1">path </span><span class="s0">in </span><span class="s1">paths.queue:</span>
+							<span class="s0">if </span><span class="s1">neighbour == path[</span><span class="s2">0</span><span class="s1">]:</span>
+								<span class="s1">present = </span><span class="s0">True</span>
+								<span class="s4">#This updates a path if a shorter route to the same node is found</span>
+								<span class="s0">if </span><span class="s1">path[</span><span class="s2">1</span><span class="s1">] &gt; current[</span><span class="s2">1</span><span class="s1">] + abs(math.sqrt(((neighbour.mapX - target.mapX) ** </span><span class="s2">2</span><span class="s1">) + ((neighbour.mapY - target.mapY) ** </span><span class="s2">2</span><span class="s1">))):</span>
+									<span class="s1">path[</span><span class="s2">1</span><span class="s1">] = current[</span><span class="s2">1</span><span class="s1">] + abs(math.sqrt(((neighbour.mapX - target.mapX) ** </span><span class="s2">2</span><span class="s1">) + ((neighbour.mapY - target.mapY) ** </span><span class="s2">2</span><span class="s1">)))</span>
+									<span class="s1">path[</span><span class="s2">2</span><span class="s1">] = abs(math.sqrt(((neighbour.mapX - current[</span><span class="s2">0</span><span class="s1">].mapX) ** </span><span class="s2">2</span><span class="s1">) + ((neighbour.mapY - current[</span><span class="s2">0</span><span class="s1">].mapY) ** </span><span class="s2">2</span><span class="s1">))) + abs(math.sqrt(((neighbour.mapX - target.mapX) ** </span><span class="s2">2</span><span class="s1">) + ((neighbour.mapY - target.mapY) ** </span><span class="s2">2</span><span class="s1">)))</span>
+									<span class="s1">pathNodes = current[</span><span class="s2">3</span><span class="s1">]</span>
+									<span class="s1">pathNodes.append(current[</span><span class="s2">0</span><span class="s1">])</span>
+									<span class="s1">path[</span><span class="s2">3</span><span class="s1">] = pathNodes</span>
+									<span class="s1">paths.insert(path)</span>
+
+
+
+					<span class="s0">if not </span><span class="s1">present:</span>
+						<span class="s1">pathNodes = current[</span><span class="s2">3</span><span class="s1">][:]</span>
+						<span class="s1">pathNodes.append(current[</span><span class="s2">0</span><span class="s1">])</span>
+						<span class="s0">if </span><span class="s1">neighbour == goalNode:</span>
+							<span class="s1">solution = </span><span class="s0">True</span>
+							<span class="s1">successfulPath = []</span>
+							<span class="s0">for </span><span class="s1">node </span><span class="s0">in </span><span class="s1">pathNodes:</span>
+								<span class="s1">successfulPath.append(node)</span>
+							<span class="s0">del</span><span class="s1">(paths)</span>
+							<span class="s0">return </span><span class="s1">successfulPath</span>
+
+						<span class="s0">else</span><span class="s1">:</span>
+							<span class="s1">paths.enqueue([neighbour, abs(math.sqrt(((neighbour.mapX - current[</span><span class="s2">0</span><span class="s1">].mapX) ** </span><span class="s2">2</span><span class="s1">)+((neighbour.mapY - current[</span><span class="s2">0</span><span class="s1">].mapY)**</span><span class="s2">2</span><span class="s1">))) + current[</span><span class="s2">1</span><span class="s1">],</span><span class="s4">#this calculates the hypotenuse from one neighbour to another then adds the previous nodes path cost</span>
+									  <span class="s1">abs(math.sqrt(((neighbour.mapX - current[</span><span class="s2">0</span><span class="s1">].mapX) ** </span><span class="s2">2</span><span class="s1">)+((neighbour.mapY - current[</span><span class="s2">0</span><span class="s1">].mapY)**</span><span class="s2">2</span><span class="s1">))) + abs(math.sqrt(((neighbour.mapX - target.mapX)**</span><span class="s2">2</span><span class="s1">)+((neighbour.mapY - target.mapY)**</span><span class="s2">2</span><span class="s1">))), pathNodes])</span>
+				<span class="s0">if </span><span class="s1">current[</span><span class="s2">0</span><span class="s1">] == goalNode:</span>
+					<span class="s1">solution = </span><span class="s0">True</span>
+		<span class="s0">else</span><span class="s1">:</span>
+			<span class="s0">return False</span>
+
+	<span class="s3">''' 
+    Name: travel 
+    Parameters: path:list 
+    Returns: packet:dict 
+    Purpose: This determines the enemy's activity. This could be dieing moving or attacking. 
+    '''</span>
+	<span class="s0">def </span><span class="s1">travel(self, path):</span>
+		<span class="s1">packet =  </span><span class="s0">None</span>
+		<span class="s0">if </span><span class="s1">self.health &lt;= </span><span class="s2">0</span><span class="s1">:</span>
+			<span class="s1">packet = (self.id, </span><span class="s3">&quot;ENEMYDIE&quot;</span><span class="s1">)</span>
+		<span class="s4">#This stops the game from breaking if the player is so close that no path is returned</span>
+
+		<span class="s0">elif </span><span class="s1">self.startTime:</span>
+			<span class="s0">return None</span>
+
+		<span class="s0">elif </span><span class="s1">path:</span>
+			<span class="s4"># Starts the attack sequence although maybe I should move this somewhere else?</span>
+			<span class="s0">if </span><span class="s1">len(path) &lt; </span><span class="s2">2</span><span class="s1">:</span>
+				<span class="s0">if not </span><span class="s1">self.startTime:</span>
+					<span class="s1">self.startTime = pygame.time.get_ticks()</span>
+				<span class="s1">packet = (self.id, </span><span class="s3">&quot;ENEMYATTACK&quot;</span><span class="s1">)</span>
+
+			<span class="s4">#Moves the enemy</span>
+			<span class="s0">else</span><span class="s1">:</span>
+				<span class="s1">nextNode = path[</span><span class="s2">1</span><span class="s1">]</span>
+				<span class="s1">sides = [self.mapX - nextNode.mapX, self.mapY - nextNode.mapY]</span>
+
+				<span class="s1">hypotenuse = math.sqrt((sides[</span><span class="s2">0</span><span class="s1">]**</span><span class="s2">2</span><span class="s1">)+(sides[</span><span class="s2">1</span><span class="s1">]**</span><span class="s2">2</span><span class="s1">))</span>
+				<span class="s1">seconds = hypotenuse//</span><span class="s2">2</span>
+				<span class="s4"># return self.mapX, nextNode.mapX, self.mapY, nextNode.mapY</span>
+				<span class="s0">for </span><span class="s1">count </span><span class="s0">in </span><span class="s1">range(len(sides)):</span>
+					<span class="s1">sides[count] = sides[count] * -</span><span class="s2">1</span>
+					<span class="s1">sides[count] = sides[count] // seconds</span>
+
+
+				<span class="s1">self.mapX += sides[</span><span class="s2">0</span><span class="s1">]</span>
+				<span class="s1">self.mapY += sides[</span><span class="s2">1</span><span class="s1">]</span>
+				<span class="s1">packet = (self.id, </span><span class="s3">&quot;ENEMYMOVE&quot;</span><span class="s1">, self.mapX, self.mapY)</span>
+		<span class="s0">else</span><span class="s1">:</span>
+			<span class="s0">if </span><span class="s1">pygame.time.get_ticks() - self.walking &gt;= </span><span class="s2">800</span><span class="s1">:</span>
+				<span class="s1">self.walking = pygame.time.get_ticks()</span>
+				<span class="s1">r = random.randint(</span><span class="s2">0</span><span class="s1">, </span><span class="s2">7</span><span class="s1">)</span>
+				<span class="s1">self.direction = ServerEnemy.directions[r]</span>
+
+			<span class="s1">self.mapX += self.direction[</span><span class="s2">0</span><span class="s1">]</span>
+			<span class="s1">self.mapY += self.direction[</span><span class="s2">1</span><span class="s1">]</span>
+
+			<span class="s1">packet = (self.id, </span><span class="s3">&quot;ENEMYMOVE&quot;</span><span class="s1">, self.mapX, self.mapY)</span>
+
+		<span class="s0">return </span><span class="s1">packet</span>
+
+	<span class="s3">''' 
+    Name: takeDamage 
+    Parameters: damage:int 
+    Returns: None 
+    Purpose: Takes damage away from health. 
+    '''</span>
+	<span class="s0">def </span><span class="s1">takeDamage(self, damage):</span>
+		<span class="s1">self.health -= damage</span>
+		<span class="s0">if </span><span class="s1">self.health &lt;= </span><span class="s2">0</span><span class="s1">:</span>
+			<span class="s1">self.health = </span><span class="s2">0</span>
+
+<span class="s3">''' 
+Name: nodeSetup 
+Parameters: obstacleList:spriteGroup, nodes:list 
+Returns: None 
+Purpose: This scans over the whole map to check if there are any collisions with obstacles. 
+if it doesn't detect a collision in the given area then it will initialise a Node for pathfinding and store it in the 
+nodes variable(It is a two dimensional list). It will then pass through every node in this 2D list to 
+establish neighbours if there are any near it. Neighbours are added in a way that tries to ensure entities don't get 
+stuck on corners. 
+'''</span>
+<span class="s0">def </span><span class="s1">nodeSetup(obstacleList, nodes):</span>
+	<span class="s1">sortedObstacles = []</span>
+	<span class="s0">for </span><span class="s1">obstacle </span><span class="s0">in </span><span class="s1">obstacleList:</span>
+		<span class="s4">#If the list is empty</span>
+		<span class="s0">if </span><span class="s1">len(sortedObstacles) == </span><span class="s2">0</span><span class="s1">:</span>
+			<span class="s1">sortedObstacles.append(obstacle)</span>
+
+		<span class="s4">#If this obstacle is the farthest in the list</span>
+		<span class="s0">elif </span><span class="s1">sortedObstacles[len(sortedObstacles)-</span><span class="s2">1</span><span class="s1">].mapX &lt;= obstacle.mapX:</span>
+			<span class="s1">sortedObstacles.append(obstacle)</span>
+
+		<span class="s4">#Linear insert</span>
+		<span class="s0">else</span><span class="s1">:</span>
+			<span class="s1">inserted = </span><span class="s0">False</span>
+			<span class="s1">count = </span><span class="s2">0</span>
+			<span class="s0">while </span><span class="s1">inserted == </span><span class="s0">False</span><span class="s1">:</span>
+				<span class="s0">if </span><span class="s1">obstacle.mapX &lt; sortedObstacles[count].mapX:</span>
+					<span class="s1">sortedObstacles.insert(count, obstacle)</span>
+					<span class="s1">inserted = </span><span class="s0">True</span>
+				<span class="s0">else</span><span class="s1">:</span>
+					<span class="s1">count += </span><span class="s2">1</span>
+
+	<span class="s0">for </span><span class="s1">y </span><span class="s0">in </span><span class="s1">range (MAP_WIDTH*(SCREEN_SIZE[</span><span class="s2">1</span><span class="s1">]//TILE_SIZE)):</span>
+		<span class="s0">for </span><span class="s1">x </span><span class="s0">in </span><span class="s1">range (MAP_WIDTH*(SCREEN_SIZE[</span><span class="s2">0</span><span class="s1">]//TILE_SIZE)):</span>
+			<span class="s1">collision = </span><span class="s0">False</span>
+			<span class="s0">for </span><span class="s1">obstacle </span><span class="s0">in </span><span class="s1">obstacleList:</span>
+				<span class="s0">if </span><span class="s1">checkCollision(x*</span><span class="s2">40</span><span class="s1">, x*</span><span class="s2">40 </span><span class="s1">+ TILE_SIZE, y*</span><span class="s2">40</span><span class="s1">, y*</span><span class="s2">40 </span><span class="s1">+ TILE_SIZE, obstacle.mapX - (obstacle.width//</span><span class="s2">2</span><span class="s1">), obstacle.mapX + (obstacle.width//</span><span class="s2">2</span><span class="s1">), obstacle.mapY - (obstacle.height//</span><span class="s2">2</span><span class="s1">), obstacle.mapY + (obstacle.height//</span><span class="s2">2</span><span class="s1">)):</span>
+					<span class="s1">collision = </span><span class="s0">True</span>
+			<span class="s0">if not </span><span class="s1">collision:</span>
+				<span class="s1">nodes[y][x] = Node((x*TILE_SIZE) + (TILE_SIZE//</span><span class="s2">2</span><span class="s1">),(y*TILE_SIZE) + (TILE_SIZE//</span><span class="s2">2</span><span class="s1">))</span>
+
+	<span class="s4"># This assigns the neighbours to the nodes</span>
+	<span class="s0">for </span><span class="s1">y </span><span class="s0">in </span><span class="s1">range(MAP_WIDTH * (SCREEN_SIZE[</span><span class="s2">1</span><span class="s1">] // TILE_SIZE)):  </span><span class="s4"># This calculates the amount of cells wide each tile is then multiplies it by the number of tiles</span>
+		<span class="s0">for </span><span class="s1">x </span><span class="s0">in </span><span class="s1">range(MAP_WIDTH * (SCREEN_SIZE[</span><span class="s2">0</span><span class="s1">] // TILE_SIZE)):</span>
+			<span class="s0">if </span><span class="s1">nodes[y][x] != </span><span class="s0">False</span><span class="s1">:  </span><span class="s4"># If there is a node present</span>
+				<span class="s0">if </span><span class="s1">x != </span><span class="s2">0</span><span class="s1">:  </span><span class="s4"># If not at a border</span>
+					<span class="s0">if </span><span class="s1">nodes[y][x - </span><span class="s2">1</span><span class="s1">]:  </span><span class="s4"># if the node is not false</span>
+						<span class="s1">nodes[y][x].left = nodes[y][x - </span><span class="s2">1</span><span class="s1">]</span>
+						<span class="s1">nodes[y][x].neighbours.append(nodes[y][x].left)</span>
+
+					<span class="s0">if </span><span class="s1">y != </span><span class="s2">0</span><span class="s1">:</span>
+						<span class="s0">if </span><span class="s1">nodes[y][x - </span><span class="s2">1</span><span class="s1">] != </span><span class="s0">False and </span><span class="s1">nodes[y - </span><span class="s2">1</span><span class="s1">][</span>
+							<span class="s1">x] != </span><span class="s0">False</span><span class="s1">:  </span><span class="s4"># This is in order to prevent clipping through corners</span>
+							<span class="s0">if </span><span class="s1">nodes[y - </span><span class="s2">1</span><span class="s1">][x - </span><span class="s2">1</span><span class="s1">]:</span>
+								<span class="s1">nodes[y][x].topLeft = nodes[y - </span><span class="s2">1</span><span class="s1">][x - </span><span class="s2">1</span><span class="s1">]</span>
+								<span class="s1">nodes[y][x].neighbours.append(nodes[y][x].topLeft)</span>
+
+					<span class="s0">if </span><span class="s1">y != MAP_WIDTH * (SCREEN_SIZE[</span><span class="s2">0</span><span class="s1">] // TILE_SIZE) - </span><span class="s2">1</span><span class="s1">:</span>
+						<span class="s0">if </span><span class="s1">nodes[y][x - </span><span class="s2">1</span><span class="s1">] != </span><span class="s0">False and </span><span class="s1">nodes[y + </span><span class="s2">1</span><span class="s1">][x] != </span><span class="s0">False</span><span class="s1">:</span>
+							<span class="s0">if </span><span class="s1">nodes[y + </span><span class="s2">1</span><span class="s1">][x - </span><span class="s2">1</span><span class="s1">]:</span>
+								<span class="s1">nodes[y][x].bottomLeft = nodes[y + </span><span class="s2">1</span><span class="s1">][x - </span><span class="s2">1</span><span class="s1">]</span>
+								<span class="s1">nodes[y][x].neighbours.append(nodes[y][x].bottomLeft)</span>
+
+				<span class="s0">if </span><span class="s1">x != MAP_WIDTH * (SCREEN_SIZE[</span><span class="s2">0</span><span class="s1">] // TILE_SIZE) - </span><span class="s2">1</span><span class="s1">:</span>
+					<span class="s0">if </span><span class="s1">nodes[y][x + </span><span class="s2">1</span><span class="s1">]:</span>
+						<span class="s1">nodes[y][x].right = nodes[y][x + </span><span class="s2">1</span><span class="s1">]</span>
+						<span class="s1">nodes[y][x].neighbours.append(nodes[y][x].right)</span>
+
+					<span class="s0">if </span><span class="s1">y != </span><span class="s2">0</span><span class="s1">:</span>
+						<span class="s0">if </span><span class="s1">nodes[y][x + </span><span class="s2">1</span><span class="s1">] != </span><span class="s0">False and </span><span class="s1">nodes[y - </span><span class="s2">1</span><span class="s1">][x] != </span><span class="s0">False</span><span class="s1">:</span>
+							<span class="s0">if </span><span class="s1">nodes[y - </span><span class="s2">1</span><span class="s1">][x + </span><span class="s2">1</span><span class="s1">]:</span>
+								<span class="s1">nodes[y][x].topRight = nodes[y - </span><span class="s2">1</span><span class="s1">][x + </span><span class="s2">1</span><span class="s1">]</span>
+								<span class="s1">nodes[y][x].neighbours.append(nodes[y][x].topRight)</span>
+
+					<span class="s0">if </span><span class="s1">y != MAP_WIDTH * (SCREEN_SIZE[</span><span class="s2">0</span><span class="s1">] // TILE_SIZE) - </span><span class="s2">1</span><span class="s1">:</span>
+						<span class="s0">if </span><span class="s1">nodes[y][x + </span><span class="s2">1</span><span class="s1">] != </span><span class="s0">False and </span><span class="s1">nodes[y + </span><span class="s2">1</span><span class="s1">][x] != </span><span class="s0">False</span><span class="s1">:</span>
+							<span class="s0">if </span><span class="s1">nodes[y + </span><span class="s2">1</span><span class="s1">][x + </span><span class="s2">1</span><span class="s1">]:</span>
+								<span class="s1">nodes[y][x].bottomRight = nodes[y + </span><span class="s2">1</span><span class="s1">][x + </span><span class="s2">1</span><span class="s1">]</span>
+								<span class="s1">nodes[y][x].neighbours.append(nodes[y][x].bottomRight)</span>
+
+				<span class="s0">if </span><span class="s1">y != </span><span class="s2">0</span><span class="s1">:</span>
+					<span class="s0">if </span><span class="s1">nodes[y - </span><span class="s2">1</span><span class="s1">][x]:</span>
+						<span class="s1">nodes[y][x].up = nodes[y - </span><span class="s2">1</span><span class="s1">][x]</span>
+						<span class="s1">nodes[y][x].neighbours.append(nodes[y][x].up)</span>
+
+				<span class="s0">if </span><span class="s1">y != MAP_WIDTH * (SCREEN_SIZE[</span><span class="s2">0</span><span class="s1">] // TILE_SIZE) - </span><span class="s2">1</span><span class="s1">:</span>
+					<span class="s0">if </span><span class="s1">nodes[y + </span><span class="s2">1</span><span class="s1">][x]:</span>
+						<span class="s1">nodes[y][x].down = nodes[y + </span><span class="s2">1</span><span class="s1">][x]</span>
+						<span class="s1">nodes[y][x].neighbours.append(nodes[y][x].down)</span>
+
+	<span class="s0">return </span><span class="s1">nodes</span>
+</pre>
+</body>
+</html>
