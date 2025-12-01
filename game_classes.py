@@ -858,17 +858,6 @@ class Explosion(pygame.sprite.Sprite):
 			return victims
 		else:
 			return False
-		# collisions = pygame.sprite.spritecollide(self, players, False)
-		# if collisions != []:
-		# 	for col in collisions:
-		# 		distance = math.sqrt(((col.mapX - self.mapX)**2)+((col.mapY - self.mapY)**2))
-		# 		#Close proximity damage
-		# 		if distance - col.height < (self.height//2)//2:
-		# 			col.takeDamage(40)
-		# 		#Far proximity damage
-		# 		elif distance - col.height < self.height//2:
-		# 			col.takeDamage(10)
-
 
 '''
 Name: Wall

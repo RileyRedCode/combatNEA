@@ -4,31 +4,6 @@ from npcs import Monarch
 from PIL import Image
 
 
-#--------------------------- OLD PERIMETER CODE (May want later) ---------------------------------------------------
-# perimeter = 2
-# for count in range(perimeter):#Horizontal perimeters
-#     bMap[count] = ["DWater" for i in range(SCREEN_WIDTH//TILE_SIZE)]
-#     bMap[((SCREEN_WIDTH//TILE_SIZE)-1)-count] = ["DWater" for i in range(SCREEN_WIDTH//TILE_SIZE)]
-#     bMap[count+perimeter] = ["Water" for i in range(SCREEN_WIDTH//TILE_SIZE)]
-#     bMap[((SCREEN_WIDTH // TILE_SIZE) - 1) - (count + perimeter)] = ["Water" for i in range(SCREEN_WIDTH // TILE_SIZE)]
-#     for j in range(perimeter):
-#         #Left side Dwater overide
-#         bMap[count + perimeter][j] = "DWater"
-#         bMap[((SCREEN_WIDTH // TILE_SIZE) - 1) - (count + perimeter)][j] = "DWater"
-#         #Right side
-#         bMap[count + perimeter][((SCREEN_WIDTH//TILE_SIZE)-1)-j] = "DWater"
-#         bMap[((SCREEN_WIDTH // TILE_SIZE) - 1) - (count + perimeter)][((SCREEN_WIDTH//TILE_SIZE)-1)-j] = "DWater"
-#     for i in range ((SCREEN_WIDTH//TILE_SIZE)-perimeter*4):#excludes the top and bottom perimeters #Vertical perimeters
-#         bMap[i+(perimeter*2)][count] = "DWater"
-#         bMap[i+(perimeter*2)][((SCREEN_WIDTH//TILE_SIZE)-1)-count] = "DWater"
-#         bMap[i+(perimeter*2)][count+perimeter] = "Water"
-#         bMap[i+(perimeter*2)][((SCREEN_WIDTH//TILE_SIZE)-1)-(count+perimeter)] = "Water"
-#-------------------------------------------------------------------------------------------------------------------------
-
-
-
-# biome = {False:(0, 0, 0), "Plains":(0, 255, 0), "Mountain":(170, 170, 170), "HMountain":(255, 255, 255), "Forest":(1, 107, 1), "Water":(0, 0, 255), "DWater":(0, 170, 170)}
-
 # pygame.display.init()
 SCREEN_WIDTH, SCREEN_HEIGHT = 800, 800
 TILE_SIZE = SCREEN_WIDTH//20
@@ -304,36 +279,6 @@ class MapGenerator:
         self.makeimage()
         self.createObstacles()
         return self.imgMap, self.obstacleList
-
-    # def drawMap(self, screen):
-    #     self.blocks = []
-    #     screen.fill((255, 0, 0))
-    #     rotations = 0
-    #     width = 2
-    #     length = 0
-    #     for count in range(self.mapWidth**2):  # Multiplies width by height to get count
-    #         if length == width - 1:
-    #             rotations += 1
-    #             length = 0
-    #         if rotations == 4:
-    #             width += 2
-    #             rotations = 0
-    #         if rotations == 0:  # Top side
-    #             cellX = (self.halfWidth) - (width // 2) + length
-    #             cellY = (self.halfWidth) - (width // 2)
-    #         elif rotations == 1:  # Right side
-    #             cellX = (self.halfWidth) + (width // 2) - 1
-    #             cellY = (self.halfWidth) - (width // 2) + length
-    #         elif rotations == 2:  # Bottom side
-    #             cellX = ((self.halfWidth) + (width // 2) - 1) - length
-    #             cellY = (self.halfWidth) + (width // 2) - 1
-    #         elif rotations == 3:  # Left side
-    #             cellX = (self.halfWidth) - (width // 2)
-    #             cellY = (((self.halfWidth) + (width // 2)) - 1) - length
-    #         length += 1
-    #         self.blocks.append(Terrain(cellX, cellY, self))
-    #         pygame.display.flip()
-
 
 '''
 Name: Tile
