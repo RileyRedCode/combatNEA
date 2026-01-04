@@ -364,6 +364,12 @@ class Grave(Obstacle):
         super().__init__(x, y, TILE_SIZE, TILE_SIZE, "Assets/skull.png", "Grave")
         self.lastSpawn = pygame.time.get_ticks()
 
+    '''
+    Name: __init__
+    Parameters: playerPos: list
+    Returns: False: boolean
+    Purpose: Checks if the conditions to spawn an enemy are met
+    '''
     def checkSpawn(self, playerPos):
         close = False
         for pos in playerPos:
